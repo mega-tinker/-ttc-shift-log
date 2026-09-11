@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="TTC Log">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles.css?v=4">
+<link rel="stylesheet" href="styles.css?v=5">
 <title>TTC Shift Log</title>
 </head>
 <body>
@@ -55,7 +55,101 @@
 </section>
 
 <section id="history" class="panel">
-<input id="search" type="search" placeholder="Search route, crew, run, bus, date, notes...">
+<div class="history-tools">
+  <input id="search" type="search" placeholder="Search route, crew, run, bus, date, notes...">
+
+  <details class="filter-box">
+    <summary>Filters & Sort</summary>
+    <div class="filter-grid">
+      <label>Sort
+        <select id="sortOrder">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+        </select>
+      </label>
+
+      <label>From Date
+        <input id="filterFrom" type="date">
+      </label>
+
+      <label>To Date
+        <input id="filterTo" type="date">
+      </label>
+
+      <label>Route
+        <input id="filterRoute" type="text" placeholder="e.g. 51">
+      </label>
+
+      <label>Crew
+        <input id="filterCrew" type="text" placeholder="e.g. 5109">
+      </label>
+
+      <label>Run
+        <input id="filterRun" type="text" placeholder="e.g. 5 or 25">
+      </label>
+
+      <label>Bus
+        <input id="filterBus" type="text" inputmode="numeric" placeholder="e.g. 6683">
+      </label>
+
+      <label>OT
+        <select id="filterOt">
+          <option value="all">All</option>
+          <option value="paid">Paid OT only</option>
+          <option value="unpaid">Unpaid OT only</option>
+          <option value="none">No OT</option>
+          <option value="pending">OT pending</option>
+        </select>
+      </label>
+
+      <label>Step-back
+        <select id="filterStepback">
+          <option value="all">All</option>
+          <option value="missed">Missed only</option>
+          <option value="not-missed">Not missed</option>
+        </select>
+      </label>
+
+      <label>Incident
+        <select id="filterIncident">
+          <option value="all">All</option>
+          <option value="any">Any incident</option>
+          <option value="None">None</option>
+          <option value="Passenger">Passenger</option>
+          <option value="Collision">Collision</option>
+          <option value="Mirror">Mirror</option>
+          <option value="Bus Defect">Bus Defect</option>
+          <option value="Road Closure">Road Closure</option>
+          <option value="Police / EMS">Police / EMS</option>
+          <option value="Other">Other</option>
+        </select>
+      </label>
+
+      <label>Side Camera
+        <select id="filterCamera">
+          <option value="all">All</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+          <option value="Unknown">Unknown</option>
+        </select>
+      </label>
+
+      <label>Photos
+        <select id="filterPhotos">
+          <option value="all">All</option>
+          <option value="has">Has photos</option>
+          <option value="none">No photos</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="filter-actions">
+      <button id="clearFilters" class="secondary" type="button">Clear Filters</button>
+      <span id="filterCount" class="filter-count"></span>
+    </div>
+  </details>
+</div>
+
 <div id="historyList" class="cards"></div>
 </section>
 
@@ -96,6 +190,6 @@
 </div>
 </div>
 
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

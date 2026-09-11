@@ -15,9 +15,111 @@ async function compress(file){const u=await new Promise((res,rej)=>{const r=new 
 $("photos").addEventListener("change",async e=>{for(const f of Array.from(e.target.files||[])){try{pendingPhotos.push({id:String(Date.now())+Math.random(),data:await compress(f),addedAt:new Date().toISOString(),keep:false})}catch{}}e.target.value="";renderPending()});
 function renderPending(){const b=$("photoPreview");b.innerHTML="";pendingPhotos.forEach((p,i)=>{const w=document.createElement("div");w.className="thumb-wrap";w.innerHTML='<img class="thumb" src="'+p.data+'"><button type="button" style="position:absolute;right:-5px;top:-5px;border:0;background:#7f1d1d;color:white;border-radius:50%;width:24px;height:24px">×</button>';w.querySelector("button").onclick=()=>{pendingPhotos.splice(i,1);renderPending()};b.appendChild(w)})}
 $("shiftForm").addEventListener("submit",e=>{e.preventDefault();recalc();const records=load(),old=editingId?records.find(r=>r.id===editingId):null,r={id:editingId||String(Date.now())+Math.random(),date:$("date").value,routes:$("routes").value.trim(),crew:$("crew").value.trim(),run:$("run").value.trim(),bus:$("bus").value.trim(),scheduledStart:$("scheduledStart").value,scheduledFinish:$("scheduledFinish").value,actualFinish:$("actualFinish").value,paid:$("paid").value,actualOt:$("actualOt").value,paidOt:$("paidOt").value,unpaidOt:$("unpaidOt").value,stepbackMissed:$("stepbackMissed").value,stepbackTime:$("stepbackTime").value.trim(),camera:$("camera").value,incident:$("incident").value,notes:$("notes").value.trim(),photos:[...(old?.photos||[]),...pendingPhotos]};const i=records.findIndex(x=>x.id===r.id);if(i>=0)records[i]=r;else records.push(r);try{save(records);$("saveMessage").textContent=editingId?"Shift updated.":"Shift saved.";renderHistory();renderSummary();setTimeout(reset,700)}catch{$("saveMessage").textContent="Storage full. Back up and remove old photos."}});
-$("clearForm").addEventListener("click",reset);$("search").addEventListener("input",renderHistory);
+$("clearForm").addEventListener("click",reset);
+$("search").addEventListener("input",renderHistory);
+
+["sortOrder","filterFrom","filterTo","filterRoute","filterCrew","filterRun","filterBus","filterOt","filterStepback","filterIncident","filterCamera","filterPhotos"].forEach(id=>{
+  const el=$(id);
+  if(el){
+    el.addEventListener("input",renderHistory);
+    el.addEventListener("change",renderHistory);
+  }
+});
+
+$("clearFilters").addEventListener("click",()=>{
+  $("search").value="";
+  $("sortOrder").value="newest";
+  $("filterFrom").value="";
+  $("filterTo").value="";
+  $("filterRoute").value="";
+  $("filterCrew").value="";
+  $("filterRun").value="";
+  $("filterBus").value="";
+  $("filterOt").value="all";
+  $("filterStepback").value="all";
+  $("filterIncident").value="all";
+  $("filterCamera").value="all";
+  $("filterPhotos").value="all";
+  renderHistory();
+});
 function expired(p){if(!p?.addedAt||p.keep)return false;const a=new Date(p.addedAt),c=new Date();c.setMonth(c.getMonth()-6);return a<c}
-function renderHistory(){const q=$("search").value.trim().toLowerCase(),list=$("historyList"),records=load().slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))).filter(r=>!q||Object.values({...r,photos:""}).some(v=>String(v??"").toLowerCase().includes(q)));list.innerHTML="";if(!records.length){list.innerHTML='<div class="record-card">No matching records.</div>';return}records.forEach(r=>{const c=document.createElement("article");c.className="record-card";c.innerHTML=`<div class="card-head"><div><strong>${r.date||""}</strong><span class="card-route">Route(s): ${r.routes||""}</span></div><button class="edit-btn" type="button">Edit</button></div><div class="card-grid"><div><b>Crew:</b> ${r.crew||""}</div><div><b>Run:</b> ${r.run||""}</div><div><b>Bus:</b> ${r.bus||""}</div><div><b>Scheduled Start:</b> ${r.scheduledStart||""}</div><div><b>Scheduled Finish:</b> ${r.scheduledFinish||""}</div><div><b>Actual Finish:</b> ${r.actualFinish||"Pending"}</div><div><b>Paid:</b> ${r.paid||""}</div><div><b>Actual OT:</b> ${r.actualOt||"Pending"}</div><div><b>Paid OT (2×):</b> ${r.paidOt||"Pending"}</div><div><b>Unpaid OT:</b> ${r.unpaidOt||"Pending"}</div><div><b>Step-back:</b> ${r.stepbackMissed||"No"} ${r.stepbackTime||""}</div><div><b>Camera:</b> ${r.camera||""}</div><div><b>Incident:</b> ${r.incident||""}</div></div><div class="history-photos"></div><div class="card-notes"></div><button class="delete-btn" type="button">Delete</button>`;c.querySelector(".card-notes").textContent=r.notes||"";c.querySelector(".edit-btn").onclick=()=>edit(r.id);c.querySelector(".delete-btn").onclick=()=>del(r.id);const pb=c.querySelector(".history-photos");(r.photos||[]).forEach(p=>{const w=document.createElement("div");w.className="thumb-wrap";w.innerHTML='<img class="thumb" src="'+p.data+'">'+(p.keep?'<span class="keep-badge">Keep</span>':expired(p)?'<span class="expired-badge">6+ mo</span>':'');w.querySelector("img").onclick=()=>openPhoto(r.id,p.id);pb.appendChild(w)});list.appendChild(c)})}
+function renderHistory(){
+  const q=$("search").value.trim().toLowerCase();
+  const sort=$("sortOrder").value;
+  const from=$("filterFrom").value;
+  const to=$("filterTo").value;
+  const route=$("filterRoute").value.trim().toLowerCase();
+  const crew=$("filterCrew").value.trim().toLowerCase();
+  const run=$("filterRun").value.trim().toLowerCase();
+  const bus=$("filterBus").value.trim().toLowerCase();
+  const ot=$("filterOt").value;
+  const stepback=$("filterStepback").value;
+  const incident=$("filterIncident").value;
+  const camera=$("filterCamera").value;
+  const photos=$("filterPhotos").value;
+
+  const all=load();
+  let records=all.filter(r=>{
+    if(q && !Object.values({...r,photos:""}).some(v=>String(v??"").toLowerCase().includes(q))) return false;
+    if(from && String(r.date||"")<from) return false;
+    if(to && String(r.date||"")>to) return false;
+    if(route && !String(r.routes||"").toLowerCase().includes(route)) return false;
+    if(crew && !String(r.crew||"").toLowerCase().includes(crew)) return false;
+    if(run && !String(r.run||"").toLowerCase().includes(run)) return false;
+    if(bus && !String(r.bus||"").toLowerCase().includes(bus)) return false;
+
+    if(ot==="paid" && !(mins(r.paidOt)>0)) return false;
+    if(ot==="unpaid" && !(mins(r.unpaidOt)>0)) return false;
+    if(ot==="none" && !((mins(r.actualOt)||0)===0 && r.actualOt!=="Pending")) return false;
+    if(ot==="pending" && r.actualOt!=="Pending") return false;
+
+    if(stepback==="missed" && r.stepbackMissed!=="Yes") return false;
+    if(stepback==="not-missed" && r.stepbackMissed==="Yes") return false;
+
+    if(incident==="any" && (!r.incident || r.incident==="None")) return false;
+    if(incident!=="all" && incident!=="any" && r.incident!==incident) return false;
+
+    if(camera!=="all" && r.camera!==camera) return false;
+
+    const hasPhotos=(r.photos||[]).length>0;
+    if(photos==="has" && !hasPhotos) return false;
+    if(photos==="none" && hasPhotos) return false;
+
+    return true;
+  });
+
+  records.sort((a,b)=>{
+    const cmp=String(a.date||"").localeCompare(String(b.date||""));
+    return sort==="oldest"?cmp:-cmp;
+  });
+
+  $("filterCount").textContent=records.length+" of "+all.length+" shift(s)";
+
+  const list=$("historyList");
+  list.innerHTML="";
+  if(!records.length){
+    list.innerHTML='<div class="record-card">No matching records.</div>';
+    return;
+  }
+
+  records.forEach(r=>{
+    const c=document.createElement("article");
+    c.className="record-card";
+    c.innerHTML=`<div class="card-head"><div><strong>${r.date||""}</strong><span class="card-route">Route(s): ${r.routes||""}</span></div><button class="edit-btn" type="button">Edit</button></div><div class="card-grid"><div><b>Crew:</b> ${r.crew||""}</div><div><b>Run:</b> ${r.run||""}</div><div><b>Bus:</b> ${r.bus||""}</div><div><b>Scheduled Start:</b> ${r.scheduledStart||""}</div><div><b>Scheduled Finish:</b> ${r.scheduledFinish||""}</div><div><b>Actual Finish:</b> ${r.actualFinish||"Pending"}</div><div><b>Paid:</b> ${r.paid||""}</div><div><b>Actual OT:</b> ${r.actualOt||"Pending"}</div><div><b>Paid OT (2×):</b> ${r.paidOt||"Pending"}</div><div><b>Unpaid OT:</b> ${r.unpaidOt||"Pending"}</div><div><b>Step-back:</b> ${r.stepbackMissed||"No"} ${r.stepbackTime||""}</div><div><b>Camera:</b> ${r.camera||""}</div><div><b>Incident:</b> ${r.incident||""}</div></div><div class="history-photos"></div><div class="card-notes"></div><button class="delete-btn" type="button">Delete</button>`;
+    c.querySelector(".card-notes").textContent=r.notes||"";
+    c.querySelector(".edit-btn").onclick=()=>edit(r.id);
+    c.querySelector(".delete-btn").onclick=()=>del(r.id);
+    const pb=c.querySelector(".history-photos");
+    (r.photos||[]).forEach(p=>{
+      const w=document.createElement("div");
+      w.className="thumb-wrap";
+      w.innerHTML='<img class="thumb" src="'+p.data+'">'+(p.keep?'<span class="keep-badge">Keep</span>':expired(p)?'<span class="expired-badge">6+ mo</span>':'');
+      w.querySelector("img").onclick=()=>openPhoto(r.id,p.id);
+      pb.appendChild(w);
+    });
+    list.appendChild(c);
+  });
+}
 function edit(id){const r=load().find(x=>x.id===id);if(!r)return;editingId=id;pendingPhotos=[];["date","routes","crew","run","bus","scheduledStart","scheduledFinish","actualFinish","stepbackTime","camera","incident","notes"].forEach(k=>$(k).value=r[k]||"");$("stepbackMissed").value=r.stepbackMissed||"No";recalc();document.querySelector("#shiftForm .primary").textContent="Update Shift";switchTab("new");window.scrollTo(0,0)}
 function del(id){if(confirm("Delete this shift record?")){save(load().filter(r=>r.id!==id));renderHistory();renderSummary()}}
 function total(records,f){return records.reduce((s,r)=>{const m=String(r[f]||"").match(/^(\d+):(\d{2})$/);return s+(m?+m[1]*60 + +m[2]:0)},0)}
@@ -31,5 +133,5 @@ $("exportCsv").onclick=()=>{const h=["Date","Route(s)","Crew","Run","Bus","Sched
 $("exportJson").onclick=()=>download(JSON.stringify(load(),null,2),"TTC_Shift_Log_Backup.json","application/json");
 $("importJson").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d))throw 0;if(confirm("Restore "+d.length+" records? This replaces current records.")){save(d);renderHistory();renderSummary();alert("Backup restored.")}}catch{alert("Could not read backup file.")}e.target.value=""}
 $("deleteAll").onclick=()=>{if(confirm("Delete ALL TTC records from this device?")){localStorage.removeItem(KEY);renderHistory();renderSummary()}}
-reset();renderHistory();renderSummary();if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=4").catch(()=>{}))
+reset();renderHistory();renderSummary();if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=5").catch(()=>{}))
 });
