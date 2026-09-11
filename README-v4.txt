@@ -1,0 +1,1 @@
+TTC Shift Log v4: paid/unpaid OT split, step-back pay, multiple photos, 6-month cleanup with Keep flag.

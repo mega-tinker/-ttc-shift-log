@@ -1,302 +1,35 @@
-
-document.addEventListener("DOMContentLoaded", function () {
-  const KEY = "ttcShiftRecordsV2";
-  const LEGACY_KEY = "ttcShiftRecordsV1";
-  let editingId = null;
-  const $ = id => document.getElementById(id);
-
-  function loadRecords() {
-    try {
-      const current = localStorage.getItem(KEY);
-      if (current) return JSON.parse(current);
-
-      // Import old records once, if present.
-      const legacy = localStorage.getItem(LEGACY_KEY);
-      if (legacy) {
-        const old = JSON.parse(legacy);
-        const migrated = old.map(r => ({
-          id: r.id || String(Date.now()) + Math.random(),
-          date: r.date || "",
-          routes: r.routes || "",
-          crew: r.crew || "",
-          run: r.run || "",
-          bus: r.bus || "",
-          scheduledStart: r.start || "",
-          scheduledFinish: r.finish || "",
-          actualFinish: r.finish || "",
-          paid: r.paid || "",
-          ot: r.ot || "",
-          camera: r.camera || "Unknown",
-          incident: r.incident || "None",
-          notes: r.notes || ""
-        }));
-        localStorage.setItem(KEY, JSON.stringify(migrated));
-        return migrated;
-      }
-      return [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  function saveRecords(records) {
-    localStorage.setItem(KEY, JSON.stringify(records));
-  }
-
-  function todayISO() {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 10);
-  }
-
-  function toMinutes(value) {
-    if (!value) return null;
-    const parts = value.split(":").map(Number);
-    return parts[0] * 60 + parts[1];
-  }
-
-  function diffMinutes(start, finish) {
-    const s = toMinutes(start), f = toMinutes(finish);
-    if (s == null || f == null) return null;
-    let diff = f - s;
-    if (diff < 0) diff += 24 * 60; // overnight shift
-    return diff;
-  }
-
-  function hm(total) {
-    if (total == null) return "";
-    total = Math.max(0, Math.round(total));
-    return Math.floor(total / 60) + ":" + String(total % 60).padStart(2, "0");
-  }
-
-  function recalc() {
-    const paidMin = diffMinutes($("scheduledStart").value, $("scheduledFinish").value);
-    $("paid").value = hm(paidMin);
-
-    const sf = $("scheduledFinish").value;
-    const af = $("actualFinish").value;
-    if (!sf || !af) {
-      $("ot").value = "Pending";
-      return;
-    }
-    let otMin = diffMinutes(sf, af);
-    // If actual finish equals scheduled finish => 0
-    if (sf === af) otMin = 0;
-    $("ot").value = hm(otMin);
-  }
-
-  ["scheduledStart","scheduledFinish","actualFinish"].forEach(id => {
-    $(id).addEventListener("input", recalc);
-    $(id).addEventListener("change", recalc);
-  });
-
-  function switchTab(name) {
-    document.querySelectorAll(".tab").forEach(btn =>
-      btn.classList.toggle("active", btn.dataset.tab === name)
-    );
-    document.querySelectorAll(".panel").forEach(panel =>
-      panel.classList.toggle("active", panel.id === name)
-    );
-    if (name === "history") renderHistory();
-    if (name === "summary") renderSummary();
-  }
-
-  document.querySelectorAll(".tab").forEach(btn => {
-    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
-  });
-
-  function resetForm() {
-    editingId = null;
-    $("shiftForm").reset();
-    $("date").value = todayISO();
-    $("camera").value = "Unknown";
-    $("incident").value = "None";
-    $("paid").value = "";
-    $("ot").value = "Pending";
-    $("saveMessage").textContent = "";
-    document.querySelector("#shiftForm .primary").textContent = "Save Shift";
-  }
-
-  $("shiftForm").addEventListener("submit", function (e) {
-    e.preventDefault();
-    recalc();
-
-    const record = {
-      id: editingId || (Date.now().toString(36) + Math.random().toString(36).slice(2,8)),
-      date: $("date").value,
-      routes: $("routes").value.trim(),
-      crew: $("crew").value.trim(),
-      run: $("run").value.trim(),
-      bus: $("bus").value.trim(),
-      scheduledStart: $("scheduledStart").value,
-      scheduledFinish: $("scheduledFinish").value,
-      actualFinish: $("actualFinish").value,
-      paid: $("paid").value,
-      ot: $("ot").value,
-      camera: $("camera").value,
-      incident: $("incident").value,
-      notes: $("notes").value.trim()
-    };
-
-    const records = loadRecords();
-    const idx = records.findIndex(r => r.id === record.id);
-    if (idx >= 0) records[idx] = record;
-    else records.push(record);
-
-    saveRecords(records);
-    $("saveMessage").textContent = editingId ? "Shift updated." : "Shift saved.";
-    renderHistory();
-    renderSummary();
-    setTimeout(resetForm, 700);
-  });
-
-  $("clearForm").addEventListener("click", resetForm);
-  $("search").addEventListener("input", renderHistory);
-
-  function renderHistory() {
-    const q = $("search").value.trim().toLowerCase();
-    const list = $("historyList");
-    const records = loadRecords()
-      .slice()
-      .sort((a,b) => String(b.date||"").localeCompare(String(a.date||"")))
-      .filter(r => !q || Object.values(r).some(v => String(v ?? "").toLowerCase().includes(q)));
-
-    list.innerHTML = "";
-    if (!records.length) {
-      list.innerHTML = '<div class="record-card">No matching records.</div>';
-      return;
-    }
-
-    records.forEach(r => {
-      const card = document.createElement("article");
-      card.className = "record-card";
-      card.innerHTML = `
-        <div class="card-head">
-          <div><strong>${r.date || ""}</strong><span class="card-route">Route(s): ${r.routes || ""}</span></div>
-          <button class="edit-btn" type="button">Edit</button>
-        </div>
-        <div class="card-grid">
-          <div><b>Crew:</b> ${r.crew || ""}</div>
-          <div><b>Run:</b> ${r.run || ""}</div>
-          <div><b>Bus:</b> ${r.bus || ""}</div>
-          <div><b>Scheduled Start:</b> ${r.scheduledStart || ""}</div>
-          <div><b>Scheduled Finish:</b> ${r.scheduledFinish || ""}</div>
-          <div><b>Actual Finish:</b> ${r.actualFinish || ""}</div>
-          <div><b>Paid:</b> ${r.paid || ""}</div>
-          <div><b>OT:</b> ${r.ot || ""}</div>
-          <div><b>Camera:</b> ${r.camera || ""}</div>
-          <div><b>Incident:</b> ${r.incident || ""}</div>
-        </div>
-        <div class="card-notes"></div>
-        <button class="delete-btn" type="button">Delete</button>`;
-      card.querySelector(".card-notes").textContent = r.notes || "";
-      card.querySelector(".edit-btn").addEventListener("click", () => editRecord(r.id));
-      card.querySelector(".delete-btn").addEventListener("click", () => deleteRecord(r.id));
-      list.appendChild(card);
-    });
-  }
-
-  function editRecord(id) {
-    const r = loadRecords().find(x => x.id === id);
-    if (!r) return;
-    editingId = id;
-    $("date").value = r.date || "";
-    $("routes").value = r.routes || "";
-    $("crew").value = r.crew || "";
-    $("run").value = r.run || "";
-    $("bus").value = r.bus || "";
-    $("scheduledStart").value = r.scheduledStart || "";
-    $("scheduledFinish").value = r.scheduledFinish || "";
-    $("actualFinish").value = r.actualFinish || "";
-    $("camera").value = r.camera || "Unknown";
-    $("incident").value = r.incident || "None";
-    $("notes").value = r.notes || "";
-    recalc();
-    document.querySelector("#shiftForm .primary").textContent = "Update Shift";
-    switchTab("new");
-    window.scrollTo(0,0);
-  }
-
-  function deleteRecord(id) {
-    if (!confirm("Delete this shift record?")) return;
-    saveRecords(loadRecords().filter(r => r.id !== id));
-    renderHistory();
-    renderSummary();
-  }
-
-  function totalField(records, field) {
-    return records.reduce((sum,r) => sum + (function(v){
-      const m = String(v||"").match(/^(\d+):(\d{2})$/);
-      return m ? Number(m[1])*60 + Number(m[2]) : 0;
-    })(r[field]), 0);
-  }
-
-  function renderSummary() {
-    const records = loadRecords();
-    $("sumShifts").textContent = records.length;
-    $("sumPaid").textContent = hm(totalField(records, "paid"));
-    $("sumOT").textContent = hm(totalField(records, "ot"));
-    $("sumIncidents").textContent = records.filter(r => r.incident && r.incident !== "None").length;
-
-    const routes = [];
-    records.forEach(r => String(r.routes||"").split(/[\\/,]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>routes.push(x)));
-    $("sumRoutes").textContent = new Set(routes).size;
-    $("sumBuses").textContent = new Set(records.map(r=>r.bus).filter(Boolean)).size;
-  }
-
-  function download(content, filename, type) {
-    const blob = new Blob([content], {type});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url), 1000);
-  }
-
-  $("exportCsv").addEventListener("click", function () {
-    const headers = ["Date","Route(s)","Crew","Run","Bus","Scheduled Start","Scheduled Finish","Actual Finish","Paid","OT","Side Camera","Incident","Notes"];
-    const rows = loadRecords().map(r => [r.date,r.routes,r.crew,r.run,r.bus,r.scheduledStart,r.scheduledFinish,r.actualFinish,r.paid,r.ot,r.camera,r.incident,r.notes]);
-    const csv = [headers,...rows].map(row => row.map(v => '"' + String(v ?? "").replace(/"/g,'""') + '"').join(",")).join("\\n");
-    download(csv, "TTC_Shift_Log.csv", "text/csv;charset=utf-8");
-  });
-
-  $("exportJson").addEventListener("click", () =>
-    download(JSON.stringify(loadRecords(), null, 2), "TTC_Shift_Log_Backup.json", "application/json")
-  );
-
-  $("importJson").addEventListener("change", async function (e) {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    try {
-      const data = JSON.parse(await file.text());
-      if (!Array.isArray(data)) throw new Error();
-      if (confirm("Restore " + data.length + " records? This replaces current records.")) {
-        saveRecords(data);
-        renderHistory();
-        renderSummary();
-        alert("Backup restored.");
-      }
-    } catch {
-      alert("Could not read backup file.");
-    }
-    e.target.value = "";
-  });
-
-  $("deleteAll").addEventListener("click", function () {
-    if (confirm("Delete ALL TTC records from this device?")) {
-      localStorage.removeItem(KEY);
-      renderHistory();
-      renderSummary();
-    }
-  });
-
-  resetForm();
-  renderHistory();
-  renderSummary();
-
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", function () {
-      navigator.serviceWorker.register("./service-worker.js?v=3").catch(function(){});
-    });
-  }
+document.addEventListener("DOMContentLoaded",function(){
+const KEY="ttcShiftRecordsV4",LEGACY=["ttcShiftRecordsV3","ttcShiftRecordsV2","ttcShiftRecordsV1"];let editingId=null,pendingPhotos=[],modalCtx=null;const $=id=>document.getElementById(id);
+function load(){try{let r=localStorage.getItem(KEY);if(r)return JSON.parse(r);for(const k of LEGACY){r=localStorage.getItem(k);if(r){const old=JSON.parse(r),m=old.map(x=>({id:x.id||String(Date.now())+Math.random(),date:x.date||"",routes:x.routes||"",crew:x.crew||"",run:x.run||"",bus:x.bus||"",scheduledStart:x.scheduledStart||x.start||"",scheduledFinish:x.scheduledFinish||x.finish||"",actualFinish:x.actualFinish||"",paid:x.paid||"",actualOt:x.actualOt||x.ot||"Pending",paidOt:x.paidOt||"0:00",unpaidOt:x.unpaidOt||"0:00",stepbackMissed:x.stepbackMissed||"No",stepbackTime:x.stepbackTime||"",camera:x.camera||"Unknown",incident:x.incident||"None",notes:x.notes||"",photos:Array.isArray(x.photos)?x.photos:[]}));localStorage.setItem(KEY,JSON.stringify(m));return m}}return[]}catch(e){return[]}}
+function save(v){localStorage.setItem(KEY,JSON.stringify(v))}function today(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
+function mins(v){if(!v)return null;const p=String(v).split(":").map(Number);return p.length===2&&!isNaN(p[0])&&!isNaN(p[1])?p[0]*60+p[1]:null}
+function diff(a,b){const s=mins(a),f=mins(b);if(s==null||f==null)return null;let d=f-s;if(d<0)d+=1440;return d}
+function hm(n){if(n==null)return"";n=Math.max(0,Math.round(n));return Math.floor(n/60)+":"+String(n%60).padStart(2,"0")}
+function recalc(){$("paid").value=hm(diff($("scheduledStart").value,$("scheduledFinish").value));const sf=$("scheduledFinish").value,af=$("actualFinish").value;if(!sf||!af){$("actualOt").value=$("paidOt").value=$("unpaidOt").value="Pending";return}const a=sf===af?0:diff(sf,af);$("actualOt").value=hm(a);if(a>=10){$("paidOt").value=hm(a);$("unpaidOt").value="0:00"}else{$("paidOt").value="0:00";$("unpaidOt").value=hm(a)}}
+["scheduledStart","scheduledFinish","actualFinish"].forEach(id=>{$(id).addEventListener("input",recalc);$(id).addEventListener("change",recalc)});
+$("stepbackMissed").addEventListener("change",function(){if(this.value==="No")$("stepbackTime").value=""});
+function switchTab(n){document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===n));document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("active",p.id===n));if(n==="history")renderHistory();if(n==="summary")renderSummary()}
+document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>switchTab(b.dataset.tab)));
+function reset(){editingId=null;pendingPhotos=[];$("shiftForm").reset();$("date").value=today();$("camera").value="Unknown";$("incident").value="None";$("stepbackMissed").value="No";$("actualOt").value=$("paidOt").value=$("unpaidOt").value="Pending";$("paid").value="";$("saveMessage").textContent="";document.querySelector("#shiftForm .primary").textContent="Save Shift";renderPending()}
+async function compress(file){const u=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file)}),img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=u});let w=img.width,h=img.height;const m=1600;if(Math.max(w,h)>m){const s=m/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s)}const c=document.createElement("canvas");c.width=w;c.height=h;c.getContext("2d").drawImage(img,0,0,w,h);return c.toDataURL("image/jpeg",.72)}
+$("photos").addEventListener("change",async e=>{for(const f of Array.from(e.target.files||[])){try{pendingPhotos.push({id:String(Date.now())+Math.random(),data:await compress(f),addedAt:new Date().toISOString(),keep:false})}catch{}}e.target.value="";renderPending()});
+function renderPending(){const b=$("photoPreview");b.innerHTML="";pendingPhotos.forEach((p,i)=>{const w=document.createElement("div");w.className="thumb-wrap";w.innerHTML='<img class="thumb" src="'+p.data+'"><button type="button" style="position:absolute;right:-5px;top:-5px;border:0;background:#7f1d1d;color:white;border-radius:50%;width:24px;height:24px">×</button>';w.querySelector("button").onclick=()=>{pendingPhotos.splice(i,1);renderPending()};b.appendChild(w)})}
+$("shiftForm").addEventListener("submit",e=>{e.preventDefault();recalc();const records=load(),old=editingId?records.find(r=>r.id===editingId):null,r={id:editingId||String(Date.now())+Math.random(),date:$("date").value,routes:$("routes").value.trim(),crew:$("crew").value.trim(),run:$("run").value.trim(),bus:$("bus").value.trim(),scheduledStart:$("scheduledStart").value,scheduledFinish:$("scheduledFinish").value,actualFinish:$("actualFinish").value,paid:$("paid").value,actualOt:$("actualOt").value,paidOt:$("paidOt").value,unpaidOt:$("unpaidOt").value,stepbackMissed:$("stepbackMissed").value,stepbackTime:$("stepbackTime").value.trim(),camera:$("camera").value,incident:$("incident").value,notes:$("notes").value.trim(),photos:[...(old?.photos||[]),...pendingPhotos]};const i=records.findIndex(x=>x.id===r.id);if(i>=0)records[i]=r;else records.push(r);try{save(records);$("saveMessage").textContent=editingId?"Shift updated.":"Shift saved.";renderHistory();renderSummary();setTimeout(reset,700)}catch{$("saveMessage").textContent="Storage full. Back up and remove old photos."}});
+$("clearForm").addEventListener("click",reset);$("search").addEventListener("input",renderHistory);
+function expired(p){if(!p?.addedAt||p.keep)return false;const a=new Date(p.addedAt),c=new Date();c.setMonth(c.getMonth()-6);return a<c}
+function renderHistory(){const q=$("search").value.trim().toLowerCase(),list=$("historyList"),records=load().slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))).filter(r=>!q||Object.values({...r,photos:""}).some(v=>String(v??"").toLowerCase().includes(q)));list.innerHTML="";if(!records.length){list.innerHTML='<div class="record-card">No matching records.</div>';return}records.forEach(r=>{const c=document.createElement("article");c.className="record-card";c.innerHTML=`<div class="card-head"><div><strong>${r.date||""}</strong><span class="card-route">Route(s): ${r.routes||""}</span></div><button class="edit-btn" type="button">Edit</button></div><div class="card-grid"><div><b>Crew:</b> ${r.crew||""}</div><div><b>Run:</b> ${r.run||""}</div><div><b>Bus:</b> ${r.bus||""}</div><div><b>Scheduled Start:</b> ${r.scheduledStart||""}</div><div><b>Scheduled Finish:</b> ${r.scheduledFinish||""}</div><div><b>Actual Finish:</b> ${r.actualFinish||"Pending"}</div><div><b>Paid:</b> ${r.paid||""}</div><div><b>Actual OT:</b> ${r.actualOt||"Pending"}</div><div><b>Paid OT (2×):</b> ${r.paidOt||"Pending"}</div><div><b>Unpaid OT:</b> ${r.unpaidOt||"Pending"}</div><div><b>Step-back:</b> ${r.stepbackMissed||"No"} ${r.stepbackTime||""}</div><div><b>Camera:</b> ${r.camera||""}</div><div><b>Incident:</b> ${r.incident||""}</div></div><div class="history-photos"></div><div class="card-notes"></div><button class="delete-btn" type="button">Delete</button>`;c.querySelector(".card-notes").textContent=r.notes||"";c.querySelector(".edit-btn").onclick=()=>edit(r.id);c.querySelector(".delete-btn").onclick=()=>del(r.id);const pb=c.querySelector(".history-photos");(r.photos||[]).forEach(p=>{const w=document.createElement("div");w.className="thumb-wrap";w.innerHTML='<img class="thumb" src="'+p.data+'">'+(p.keep?'<span class="keep-badge">Keep</span>':expired(p)?'<span class="expired-badge">6+ mo</span>':'');w.querySelector("img").onclick=()=>openPhoto(r.id,p.id);pb.appendChild(w)});list.appendChild(c)})}
+function edit(id){const r=load().find(x=>x.id===id);if(!r)return;editingId=id;pendingPhotos=[];["date","routes","crew","run","bus","scheduledStart","scheduledFinish","actualFinish","stepbackTime","camera","incident","notes"].forEach(k=>$(k).value=r[k]||"");$("stepbackMissed").value=r.stepbackMissed||"No";recalc();document.querySelector("#shiftForm .primary").textContent="Update Shift";switchTab("new");window.scrollTo(0,0)}
+function del(id){if(confirm("Delete this shift record?")){save(load().filter(r=>r.id!==id));renderHistory();renderSummary()}}
+function total(records,f){return records.reduce((s,r)=>{const m=String(r[f]||"").match(/^(\d+):(\d{2})$/);return s+(m?+m[1]*60 + +m[2]:0)},0)}
+function renderSummary(){const r=load();$("sumShifts").textContent=r.length;$("sumPaid").textContent=hm(total(r,"paid"));$("sumActualOt").textContent=hm(total(r,"actualOt"));$("sumPaidOt").textContent=hm(total(r,"paidOt"));$("sumUnpaidOt").textContent=hm(total(r,"unpaidOt"));$("sumStepback").textContent=hm(total(r,"stepbackTime"));$("sumIncidents").textContent=r.filter(x=>x.incident&&x.incident!=="None").length;const routes=[];r.forEach(x=>String(x.routes||"").split(/[\/,]+/).map(y=>y.trim()).filter(Boolean).forEach(y=>routes.push(y)));$("sumRoutes").textContent=new Set(routes).size;$("sumBuses").textContent=new Set(r.map(x=>x.bus).filter(Boolean)).size;const photos=r.flatMap(x=>x.photos||[]);$("sumPhotos").textContent=photos.length;const n=photos.filter(expired).length;$("expiredInfo").textContent=n?n+" photo(s) older than 6 months and not marked Keep.":"No expired photos."}
+$("cleanupPhotos").onclick=()=>{const r=load(),n=r.flatMap(x=>x.photos||[]).filter(expired).length;if(!n)return alert("No expired photos to clean up.");if(!confirm("Delete "+n+" expired photo(s)? Shift records will stay."))return;r.forEach(x=>x.photos=(x.photos||[]).filter(p=>!expired(p)));save(r);renderHistory();renderSummary()}
+function openPhoto(rid,pid){const r=load().find(x=>x.id===rid),p=r?.photos?.find(x=>x.id===pid);if(!p)return;modalCtx={rid,pid};$("modalImage").src=p.data;$("keepPhoto").checked=!!p.keep;$("photoModal").classList.remove("hidden")}
+$("closeModal").onclick=()=>$("photoModal").classList.add("hidden");$("keepPhoto").onchange=function(){if(!modalCtx)return;const r=load(),rec=r.find(x=>x.id===modalCtx.rid),p=rec?.photos?.find(x=>x.id===modalCtx.pid);if(p){p.keep=this.checked;save(r);renderHistory();renderSummary()}}
+$("deletePhoto").onclick=()=>{if(!modalCtx||!confirm("Delete this photo?"))return;const r=load(),rec=r.find(x=>x.id===modalCtx.rid);if(rec)rec.photos=(rec.photos||[]).filter(p=>p.id!==modalCtx.pid);save(r);$("photoModal").classList.add("hidden");renderHistory();renderSummary()}
+function download(content,name,type){const b=new Blob([content],{type}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+$("exportCsv").onclick=()=>{const h=["Date","Route(s)","Crew","Run","Bus","Scheduled Start","Scheduled Finish","Actual Finish","Paid","Actual OT","Paid OT 2x","Unpaid OT","Step-back Missed","Step-back Time 1x","Side Camera","Incident","Notes","Photo Count"],rows=load().map(r=>[r.date,r.routes,r.crew,r.run,r.bus,r.scheduledStart,r.scheduledFinish,r.actualFinish,r.paid,r.actualOt,r.paidOt,r.unpaidOt,r.stepbackMissed,r.stepbackTime,r.camera,r.incident,r.notes,(r.photos||[]).length]),csv=[h,...rows].map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\n");download(csv,"TTC_Shift_Log.csv","text/csv;charset=utf-8")}
+$("exportJson").onclick=()=>download(JSON.stringify(load(),null,2),"TTC_Shift_Log_Backup.json","application/json");
+$("importJson").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d))throw 0;if(confirm("Restore "+d.length+" records? This replaces current records.")){save(d);renderHistory();renderSummary();alert("Backup restored.")}}catch{alert("Could not read backup file.")}e.target.value=""}
+$("deleteAll").onclick=()=>{if(confirm("Delete ALL TTC records from this device?")){localStorage.removeItem(KEY);renderHistory();renderSummary()}}
+reset();renderHistory();renderSummary();if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=4").catch(()=>{}))
 });

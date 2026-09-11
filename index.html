@@ -8,12 +8,11 @@
 <meta name="apple-mobile-web-app-title" content="TTC Log">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles.css?v=3">
+<link rel="stylesheet" href="styles.css?v=4">
 <title>TTC Shift Log</title>
 </head>
 <body>
 <header class="topbar"><h1>TTC Shift Log</h1><p>Offline personal work record</p></header>
-
 <main>
 <nav class="tabs">
 <button class="tab active" data-tab="new">New Shift</button>
@@ -26,46 +25,31 @@
 <form id="shiftForm">
 <div class="grid">
 <label>Date<input id="date" type="date" required></label>
-<label>Route(s)<input id="routes" type="text" placeholder="54 or 11 / 100" required></label>
-<label>Crew<input id="crew" type="text" inputmode="numeric" placeholder="1" required></label>
-<label>Run<input id="run" type="text" inputmode="numeric" placeholder="54001" required></label>
+<label>Route(s)<input id="routes" type="text" placeholder="54 or 11 / 51" required></label>
+<label>Crew<input id="crew" type="text" placeholder="5109" required></label>
+<label>Run<input id="run" type="text" placeholder="25 / 5" required></label>
 <label>Bus<input id="bus" type="text" inputmode="numeric" placeholder="8838" required></label>
-
 <label>Scheduled Start<input id="scheduledStart" type="time" required></label>
 <label>Scheduled Finish<input id="scheduledFinish" type="time" required></label>
 <label>Actual Finish<input id="actualFinish" type="time"></label>
 
-<label>Paid
-<input id="paid" type="text" placeholder="Calculated automatically" readonly>
-<span class="hint">Scheduled Start → Scheduled Finish</span>
-</label>
+<label>Paid<input id="paid" type="text" readonly><span class="hint">Scheduled Start → Scheduled Finish</span></label>
+<label>Actual OT<input id="actualOt" type="text" readonly><span class="hint">Scheduled Finish → Actual Finish</span></label>
+<label>Paid OT (2×)<input id="paidOt" type="text" readonly><span class="hint">Full amount when Actual OT is 10 min or more</span></label>
+<label>Unpaid OT<input id="unpaidOt" type="text" readonly><span class="hint">1–9 minutes late</span></label>
 
-<label>OT
-<input id="ot" type="text" placeholder="Calculated automatically" readonly>
-<span class="hint">Actual Finish − Scheduled Finish</span>
-</label>
+<label>Step-back Missed?<select id="stepbackMissed"><option>No</option><option>Yes</option></select></label>
+<label>Step-back Time (1×)<input id="stepbackTime" type="text" inputmode="numeric" placeholder="0:15"></label>
 
-<label>Side Camera
-<select id="camera">
-<option>Unknown</option><option>Yes</option><option>No</option>
-</select>
-</label>
-
-<label>Incident
-<select id="incident">
-<option>None</option><option>Passenger</option><option>Collision</option>
-<option>Mirror</option><option>Bus Defect</option><option>Road Closure</option>
-<option>Police / EMS</option><option>Other</option>
-</select>
-</label>
+<label>Side Camera<select id="camera"><option>Unknown</option><option>Yes</option><option>No</option></select></label>
+<label>Incident<select id="incident"><option>None</option><option>Passenger</option><option>Collision</option><option>Mirror</option><option>Bus Defect</option><option>Road Closure</option><option>Police / EMS</option><option>Other</option></select></label>
 </div>
+
+<label class="full">Photos<input id="photos" type="file" accept="image/*" multiple><span class="hint">Take or choose multiple photos</span></label>
+<div id="photoPreview" class="photo-preview"></div>
 
 <label class="full">Notes<textarea id="notes" rows="5" placeholder="Anything useful you may want to remember..."></textarea></label>
-
-<div class="actions">
-<button class="primary" type="submit">Save Shift</button>
-<button class="secondary" type="button" id="clearForm">Clear</button>
-</div>
+<div class="actions"><button class="primary" type="submit">Save Shift</button><button class="secondary" type="button" id="clearForm">Clear</button></div>
 <p id="saveMessage" class="message"></p>
 </form>
 </section>
@@ -79,17 +63,22 @@
 <div class="summary-grid">
 <div class="stat"><span>Total Shifts</span><strong id="sumShifts">0</strong></div>
 <div class="stat"><span>Total Paid</span><strong id="sumPaid">0:00</strong></div>
-<div class="stat"><span>Total OT</span><strong id="sumOT">0:00</strong></div>
+<div class="stat"><span>Actual OT</span><strong id="sumActualOt">0:00</strong></div>
+<div class="stat"><span>Paid OT (2×)</span><strong id="sumPaidOt">0:00</strong></div>
+<div class="stat"><span>Unpaid OT</span><strong id="sumUnpaidOt">0:00</strong></div>
+<div class="stat"><span>Step-back (1×)</span><strong id="sumStepback">0:00</strong></div>
 <div class="stat"><span>Incidents</span><strong id="sumIncidents">0</strong></div>
 <div class="stat"><span>Routes</span><strong id="sumRoutes">0</strong></div>
 <div class="stat"><span>Buses</span><strong id="sumBuses">0</strong></div>
+<div class="stat"><span>Stored Photos</span><strong id="sumPhotos">0</strong></div>
 </div>
+<div class="cleanup-box"><h3>Photo Cleanup</h3><p id="expiredInfo">No expired photos.</p><button id="cleanupPhotos" class="secondary" type="button">Clean Up Old Photos</button></div>
 </section>
 
 <section id="backup" class="panel">
 <div class="backup-box">
 <h2>Backup & Export</h2>
-<p>Your records are stored on this device. Export backups regularly.</p>
+<p>Your records and photos are stored on this device. Export backups regularly.</p>
 <button id="exportCsv" class="primary">Export CSV</button>
 <button id="exportJson" class="secondary">Backup JSON</button>
 <label class="full">Restore JSON Backup<input id="importJson" type="file" accept=".json,application/json"></label>
@@ -98,6 +87,15 @@
 </section>
 </main>
 
-<script src="app.js?v=3"></script>
+<div id="photoModal" class="modal hidden">
+<div class="modal-card">
+<button id="closeModal" class="modal-close">×</button>
+<img id="modalImage" alt="Shift photo">
+<label class="keep-label"><input id="keepPhoto" type="checkbox"> Keep this photo beyond 6 months</label>
+<button id="deletePhoto" class="danger small" type="button">Delete Photo</button>
+</div>
+</div>
+
+<script src="app.js?v=4"></script>
 </body>
 </html>
