@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="TTC Log">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles.css?v=7">
+<link rel="stylesheet" href="styles.css?v=8">
 <title>TTC Shift Log</title>
 </head>
 <body>
@@ -33,6 +33,13 @@
 <label>Scheduled Start<input id="scheduledStart" type="time" required></label>
 <label>Scheduled Finish<input id="scheduledFinish" type="time" required></label>
 <label>Actual Finish<input id="actualFinish" type="time"></label>
+<label>Overtime Work
+<select id="overtimeWork">
+<option value="No">No</option>
+<option value="Yes">Yes — entire shift 1.5×</option>
+</select>
+<span class="hint">Use for volunteer overtime / qualifying holiday work</span>
+</label>
 
 <label>Paid<input id="paid" type="text" readonly><span class="hint">Scheduled Start → Scheduled Finish</span></label>
 <label>Actual OT<input id="actualOt" type="text" readonly><span class="hint">Only calculated when Actual Finish is entered</span></label>
@@ -108,6 +115,7 @@
 <div class="pay-row"><span>Total Paid</span><strong id="weekTotalPaid">0:00</strong></div>
 <div class="pay-row"><span>Platform Regular &lt; 8</span><strong id="weekPlatformLt8">0:00</strong></div>
 <div class="pay-row"><span>Platform Regular &gt; 8 <small>1.5×</small></span><strong id="weekPlatformGt8">0:00</strong></div>
+<div class="pay-row"><span>Overtime Work <small>1.5×</small></span><strong id="weekOvertimeWork">0:00</strong></div>
 <div class="pay-row"><span>OT Late In <small>2×</small></span><strong id="weekPaidOt">0:00</strong></div>
 <div class="pay-row"><span>Missed Step-back <small>1×</small></span><strong id="weekStepback">0:00</strong></div>
 </div>
@@ -170,6 +178,6 @@
 </div>
 </div>
 
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>
