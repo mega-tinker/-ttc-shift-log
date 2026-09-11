@@ -1,0 +1,1 @@
+TTC Shift Log v6: weekly Summary navigation, weekly paystub-oriented totals, Platform Time input, daily breakdown, and tappable all-time Work Summary drill-downs.

@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="TTC Log">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles.css?v=5">
+<link rel="stylesheet" href="styles.css?v=6">
 <title>TTC Shift Log</title>
 </head>
 <body>
@@ -29,6 +29,7 @@
 <label>Crew<input id="crew" type="text" placeholder="5109" required></label>
 <label>Run<input id="run" type="text" placeholder="25 / 5" required></label>
 <label>Bus<input id="bus" type="text" inputmode="numeric" placeholder="8838" required></label>
+<label>Platform Time<div class="duration-row"><select id="platformHours"></select><span>hr</span><select id="platformMinutes"></select><span>min</span></div><span class="hint">Used for Platform Regular &lt;8 and &gt;8 calculations</span></label>
 <label>Scheduled Start<input id="scheduledStart" type="time" required></label>
 <label>Scheduled Finish<input id="scheduledFinish" type="time" required></label>
 <label>Actual Finish<input id="actualFinish" type="time"></label>
@@ -154,21 +155,13 @@
 </section>
 
 <section id="summary" class="panel">
-<div class="summary-grid">
-<div class="stat"><span>Total Shifts</span><strong id="sumShifts">0</strong></div>
-<div class="stat"><span>Total Paid</span><strong id="sumPaid">0:00</strong></div>
-<div class="stat"><span>Actual OT</span><strong id="sumActualOt">0:00</strong></div>
-<div class="stat"><span>Paid OT (2×)</span><strong id="sumPaidOt">0:00</strong></div>
-<div class="stat"><span>Unpaid OT</span><strong id="sumUnpaidOt">0:00</strong></div>
-<div class="stat"><span>Step-back (1×)</span><strong id="sumStepback">0:00</strong></div>
-<div class="stat"><span>Incidents</span><strong id="sumIncidents">0</strong></div>
-<div class="stat"><span>Routes</span><strong id="sumRoutes">0</strong></div>
-<div class="stat"><span>Buses</span><strong id="sumBuses">0</strong></div>
-<div class="stat"><span>Stored Photos</span><strong id="sumPhotos">0</strong></div>
-</div>
-<div class="cleanup-box"><h3>Photo Cleanup</h3><p id="expiredInfo">No expired photos.</p><button id="cleanupPhotos" class="secondary" type="button">Clean Up Old Photos</button></div>
+<div class="week-nav"><button id="prevWeek" class="secondary week-btn" type="button">‹ Previous Week</button><div class="week-title"><strong id="weekRange">—</strong><span>Work Week</span></div><button id="nextWeek" class="secondary week-btn" type="button">Next Week ›</button></div>
+<div class="summary-section compact-section"><h2>Pay Period Totals</h2><div class="pay-grid"><div class="pay-row"><span>Total Paid</span><strong id="weekTotalPaid">0:00</strong></div><div class="pay-row"><span>Platform Regular &lt; 8</span><strong id="weekPlatformLt8">0:00</strong></div><div class="pay-row"><span>Platform Regular &gt; 8 <small>1.5×</small></span><strong id="weekPlatformGt8">0:00</strong></div><div class="pay-row"><span>OT Late In <small>2×</small></span><strong id="weekPaidOt">0:00</strong></div><div class="pay-row"><span>Missed Step-back <small>1×</small></span><strong id="weekStepback">0:00</strong></div></div><p id="platformMissingNote" class="summary-note"></p></div>
+<div class="summary-section compact-section"><h2>OT Details</h2><div class="mini-stats"><div><span>Actual OT</span><strong id="weekActualOt">0:00</strong></div><div><span>Paid OT</span><strong id="weekPaidOtDetail">0:00</strong></div><div><span>Unpaid OT</span><strong id="weekUnpaidOt">0:00</strong></div></div></div>
+<details class="summary-section compact-section daily-details"><summary>Daily Breakdown</summary><div class="table-scroll"><table class="daily-table"><thead><tr><th>Date</th><th>Route</th><th>Bus</th><th>Platform</th><th>&lt;8</th><th>&gt;8</th><th>OT 2×</th><th>Step-back</th></tr></thead><tbody id="dailyBreakdownBody"></tbody></table></div></details>
+<div class="summary-section compact-section"><h2>Photo Cleanup</h2><p id="expiredInfo">No expired photos.</p><button id="cleanupPhotos" class="secondary" type="button">Clean Up Old Photos</button></div>
+<div class="summary-section compact-section work-summary"><div class="work-summary-head"><h2>All-Time Work Summary</h2><span>Tap any item to explore</span></div><div class="work-summary-grid"><button class="work-chip" data-work="shifts"><span>Shifts</span><strong id="allShifts">0</strong></button><button class="work-chip" data-work="routes"><span>Routes</span><strong id="allRoutes">0</strong></button><button class="work-chip" data-work="buses"><span>Buses</span><strong id="allBuses">0</strong></button><button class="work-chip" data-work="incidents"><span>Incidents</span><strong id="allIncidents">0</strong></button><button class="work-chip" data-work="photos"><span>Photos</span><strong id="allPhotos">0</strong></button><button class="work-chip" data-work="paid"><span>Overall Paid</span><strong id="allPaid">0:00</strong></button></div><div id="workDrilldown" class="work-drilldown hidden"></div></div>
 </section>
-
 <section id="backup" class="panel">
 <div class="backup-box">
 <h2>Backup & Export</h2>
@@ -190,6 +183,6 @@
 </div>
 </div>
 
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
