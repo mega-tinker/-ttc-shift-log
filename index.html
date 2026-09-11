@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="TTC Log">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles.css?v=6">
+<link rel="stylesheet" href="styles.css?v=6f">
 <title>TTC Shift Log</title>
 </head>
 <body>
@@ -29,26 +29,23 @@
 <label>Crew<input id="crew" type="text" placeholder="5109" required></label>
 <label>Run<input id="run" type="text" placeholder="25 / 5" required></label>
 <label>Bus<input id="bus" type="text" inputmode="numeric" placeholder="8838" required></label>
-<label>Platform Time<div class="duration-row"><select id="platformHours"></select><span>hr</span><select id="platformMinutes"></select><span>min</span></div><span class="hint">Used for Platform Regular &lt;8 and &gt;8 calculations</span></label>
 <label>Scheduled Start<input id="scheduledStart" type="time" required></label>
 <label>Scheduled Finish<input id="scheduledFinish" type="time" required></label>
 <label>Actual Finish<input id="actualFinish" type="time"></label>
 
 <label>Paid<input id="paid" type="text" readonly><span class="hint">Scheduled Start → Scheduled Finish</span></label>
 <label>Actual OT<input id="actualOt" type="text" readonly><span class="hint">Scheduled Finish → Actual Finish</span></label>
-<label>Paid OT (2×)<input id="paidOt" type="text" readonly><span class="hint">Full amount when Actual OT is 10 min or more</span></label>
-<label>Unpaid OT<input id="unpaidOt" type="text" readonly><span class="hint">1–9 minutes late</span></label>
+<label>Paid OT (2×)<input id="paidOt" type="text" readonly><span class="hint">Based on combined OT for the whole day</span></label>
+<label>Unpaid OT<input id="unpaidOt" type="text" readonly><span class="hint">Daily combined OT under 10 minutes</span></label>
 
 <label>Step-back Missed?<select id="stepbackMissed"><option>No</option><option>Yes</option></select></label>
 <label>Step-back Time (1×)<input id="stepbackTime" type="text" inputmode="numeric" placeholder="0:15"></label>
-
 <label>Side Camera<select id="camera"><option>Unknown</option><option>Yes</option><option>No</option></select></label>
 <label>Incident<select id="incident"><option>None</option><option>Passenger</option><option>Collision</option><option>Mirror</option><option>Bus Defect</option><option>Road Closure</option><option>Police / EMS</option><option>Other</option></select></label>
 </div>
 
 <label class="full">Photos<input id="photos" type="file" accept="image/*" multiple><span class="hint">Take or choose multiple photos</span></label>
 <div id="photoPreview" class="photo-preview"></div>
-
 <label class="full">Notes<textarea id="notes" rows="5" placeholder="Anything useful you may want to remember..."></textarea></label>
 <div class="actions"><button class="primary" type="submit">Save Shift</button><button class="secondary" type="button" id="clearForm">Clear</button></div>
 <p id="saveMessage" class="message"></p>
@@ -57,111 +54,82 @@
 
 <section id="history" class="panel">
 <div class="history-tools">
-  <input id="search" type="search" placeholder="Search route, crew, run, bus, date, notes...">
-
-  <details class="filter-box">
-    <summary>Filters & Sort</summary>
-    <div class="filter-grid">
-      <label>Sort
-        <select id="sortOrder">
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-        </select>
-      </label>
-
-      <label>From Date
-        <input id="filterFrom" type="date">
-      </label>
-
-      <label>To Date
-        <input id="filterTo" type="date">
-      </label>
-
-      <label>Route
-        <input id="filterRoute" type="text" placeholder="e.g. 51">
-      </label>
-
-      <label>Crew
-        <input id="filterCrew" type="text" placeholder="e.g. 5109">
-      </label>
-
-      <label>Run
-        <input id="filterRun" type="text" placeholder="e.g. 5 or 25">
-      </label>
-
-      <label>Bus
-        <input id="filterBus" type="text" inputmode="numeric" placeholder="e.g. 6683">
-      </label>
-
-      <label>OT
-        <select id="filterOt">
-          <option value="all">All</option>
-          <option value="paid">Paid OT only</option>
-          <option value="unpaid">Unpaid OT only</option>
-          <option value="none">No OT</option>
-          <option value="pending">OT pending</option>
-        </select>
-      </label>
-
-      <label>Step-back
-        <select id="filterStepback">
-          <option value="all">All</option>
-          <option value="missed">Missed only</option>
-          <option value="not-missed">Not missed</option>
-        </select>
-      </label>
-
-      <label>Incident
-        <select id="filterIncident">
-          <option value="all">All</option>
-          <option value="any">Any incident</option>
-          <option value="None">None</option>
-          <option value="Passenger">Passenger</option>
-          <option value="Collision">Collision</option>
-          <option value="Mirror">Mirror</option>
-          <option value="Bus Defect">Bus Defect</option>
-          <option value="Road Closure">Road Closure</option>
-          <option value="Police / EMS">Police / EMS</option>
-          <option value="Other">Other</option>
-        </select>
-      </label>
-
-      <label>Side Camera
-        <select id="filterCamera">
-          <option value="all">All</option>
-          <option value="Yes">Yes</option>
-          <option value="No">No</option>
-          <option value="Unknown">Unknown</option>
-        </select>
-      </label>
-
-      <label>Photos
-        <select id="filterPhotos">
-          <option value="all">All</option>
-          <option value="has">Has photos</option>
-          <option value="none">No photos</option>
-        </select>
-      </label>
-    </div>
-
-    <div class="filter-actions">
-      <button id="clearFilters" class="secondary" type="button">Clear Filters</button>
-      <span id="filterCount" class="filter-count"></span>
-    </div>
-  </details>
+<input id="search" type="search" placeholder="Search route, crew, run, bus, date, notes...">
+<details class="filter-box">
+<summary>Filters & Sort</summary>
+<div class="filter-grid">
+<label>Sort<select id="sortOrder"><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>
+<label>From Date<input id="filterFrom" type="date"></label>
+<label>To Date<input id="filterTo" type="date"></label>
+<label>Route<input id="filterRoute" type="text" placeholder="e.g. 51"></label>
+<label>Crew<input id="filterCrew" type="text" placeholder="e.g. 5109"></label>
+<label>Run<input id="filterRun" type="text" placeholder="e.g. 5 or 25"></label>
+<label>Bus<input id="filterBus" type="text" inputmode="numeric" placeholder="e.g. 6683"></label>
+<label>OT<select id="filterOt"><option value="all">All</option><option value="paid">Paid OT only</option><option value="unpaid">Unpaid OT only</option><option value="none">No OT</option><option value="pending">OT pending</option></select></label>
+<label>Step-back<select id="filterStepback"><option value="all">All</option><option value="missed">Missed only</option><option value="not-missed">Not missed</option></select></label>
+<label>Incident<select id="filterIncident"><option value="all">All</option><option value="any">Any incident</option><option>None</option><option>Passenger</option><option>Collision</option><option>Mirror</option><option>Bus Defect</option><option>Road Closure</option><option>Police / EMS</option><option>Other</option></select></label>
+<label>Side Camera<select id="filterCamera"><option value="all">All</option><option>Yes</option><option>No</option><option>Unknown</option></select></label>
+<label>Photos<select id="filterPhotos"><option value="all">All</option><option value="has">Has photos</option><option value="none">No photos</option></select></label>
 </div>
-
+<div class="filter-actions"><button id="clearFilters" class="secondary" type="button">Clear Filters</button><span id="filterCount" class="filter-count"></span></div>
+</details>
+</div>
 <div id="historyList" class="cards"></div>
 </section>
 
 <section id="summary" class="panel">
-<div class="week-nav"><button id="prevWeek" class="secondary week-btn" type="button">‹ Previous Week</button><div class="week-title"><strong id="weekRange">—</strong><span>Work Week</span></div><button id="nextWeek" class="secondary week-btn" type="button">Next Week ›</button></div>
-<div class="summary-section compact-section"><h2>Pay Period Totals</h2><div class="pay-grid"><div class="pay-row"><span>Total Paid</span><strong id="weekTotalPaid">0:00</strong></div><div class="pay-row"><span>Platform Regular &lt; 8</span><strong id="weekPlatformLt8">0:00</strong></div><div class="pay-row"><span>Platform Regular &gt; 8 <small>1.5×</small></span><strong id="weekPlatformGt8">0:00</strong></div><div class="pay-row"><span>OT Late In <small>2×</small></span><strong id="weekPaidOt">0:00</strong></div><div class="pay-row"><span>Missed Step-back <small>1×</small></span><strong id="weekStepback">0:00</strong></div></div><p id="platformMissingNote" class="summary-note"></p></div>
-<div class="summary-section compact-section"><h2>OT Details</h2><div class="mini-stats"><div><span>Actual OT</span><strong id="weekActualOt">0:00</strong></div><div><span>Paid OT</span><strong id="weekPaidOtDetail">0:00</strong></div><div><span>Unpaid OT</span><strong id="weekUnpaidOt">0:00</strong></div></div></div>
-<details class="summary-section compact-section daily-details"><summary>Daily Breakdown</summary><div class="table-scroll"><table class="daily-table"><thead><tr><th>Date</th><th>Route</th><th>Bus</th><th>Platform</th><th>&lt;8</th><th>&gt;8</th><th>OT 2×</th><th>Step-back</th></tr></thead><tbody id="dailyBreakdownBody"></tbody></table></div></details>
-<div class="summary-section compact-section"><h2>Photo Cleanup</h2><p id="expiredInfo">No expired photos.</p><button id="cleanupPhotos" class="secondary" type="button">Clean Up Old Photos</button></div>
-<div class="summary-section compact-section work-summary"><div class="work-summary-head"><h2>All-Time Work Summary</h2><span>Tap any item to explore</span></div><div class="work-summary-grid"><button class="work-chip" data-work="shifts"><span>Shifts</span><strong id="allShifts">0</strong></button><button class="work-chip" data-work="routes"><span>Routes</span><strong id="allRoutes">0</strong></button><button class="work-chip" data-work="buses"><span>Buses</span><strong id="allBuses">0</strong></button><button class="work-chip" data-work="incidents"><span>Incidents</span><strong id="allIncidents">0</strong></button><button class="work-chip" data-work="photos"><span>Photos</span><strong id="allPhotos">0</strong></button><button class="work-chip" data-work="paid"><span>Overall Paid</span><strong id="allPaid">0:00</strong></button></div><div id="workDrilldown" class="work-drilldown hidden"></div></div>
+<div class="week-nav">
+<button id="prevWeek" class="secondary week-btn" type="button">‹ Previous Week</button>
+<div class="week-title"><strong id="weekRange">—</strong><span>Work Week</span></div>
+<button id="nextWeek" class="secondary week-btn" type="button">Next Week ›</button>
+</div>
+
+<div class="summary-section">
+<h2>Pay Period Totals</h2>
+<div class="pay-row"><span>Total Paid</span><strong id="weekTotalPaid">0:00</strong></div>
+<div class="pay-row"><span>Platform Regular &lt; 8</span><strong id="weekPlatformLt8">0:00</strong></div>
+<div class="pay-row"><span>Platform Regular &gt; 8 <small>1.5×</small></span><strong id="weekPlatformGt8">0:00</strong></div>
+<div class="pay-row"><span>OT Late In <small>2×</small></span><strong id="weekPaidOt">0:00</strong></div>
+<div class="pay-row"><span>Missed Step-back <small>1×</small></span><strong id="weekStepback">0:00</strong></div>
+</div>
+
+<div class="summary-section">
+<h2>OT Details</h2>
+<div class="mini-stats">
+<div><span>Actual OT</span><strong id="weekActualOt">0:00</strong></div>
+<div><span>Paid OT</span><strong id="weekPaidOtDetail">0:00</strong></div>
+<div><span>Unpaid OT</span><strong id="weekUnpaidOt">0:00</strong></div>
+</div>
+</div>
+
+<details class="summary-section daily-details">
+<summary>Daily Breakdown</summary>
+<div class="table-scroll"><table class="daily-table">
+<thead><tr><th>Date</th><th>Route(s)</th><th>Bus(es)</th><th>Platform</th><th>&lt;8</th><th>&gt;8</th><th>OT 2×</th><th>Unpaid OT</th><th>Step-back</th></tr></thead>
+<tbody id="dailyBreakdownBody"></tbody>
+</table></div>
+</details>
+
+<div class="summary-section">
+<h2>Photo Cleanup</h2>
+<p id="expiredInfo">No expired photos.</p>
+<button id="cleanupPhotos" class="secondary" type="button">Clean Up Old Photos</button>
+</div>
+
+<div class="summary-section work-summary">
+<div class="work-summary-head"><h2>All-Time Work Summary</h2><span>Tap any item to explore</span></div>
+<div class="work-summary-grid">
+<button class="work-chip" data-work="shifts"><span>Shifts</span><strong id="allShifts">0</strong></button>
+<button class="work-chip" data-work="routes"><span>Routes</span><strong id="allRoutes">0</strong></button>
+<button class="work-chip" data-work="buses"><span>Buses</span><strong id="allBuses">0</strong></button>
+<button class="work-chip" data-work="incidents"><span>Incidents</span><strong id="allIncidents">0</strong></button>
+<button class="work-chip" data-work="photos"><span>Photos</span><strong id="allPhotos">0</strong></button>
+<button class="work-chip" data-work="paid"><span>Overall Paid</span><strong id="allPaid">0:00</strong></button>
+</div>
+<div id="workDrilldown" class="work-drilldown hidden"></div>
+</div>
 </section>
+
 <section id="backup" class="panel">
 <div class="backup-box">
 <h2>Backup & Export</h2>
@@ -182,7 +150,6 @@
 <button id="deletePhoto" class="danger small" type="button">Delete Photo</button>
 </div>
 </div>
-
-<script src="app.js?v=6"></script>
+<script src="app.js?v=6f"></script>
 </body>
 </html>
