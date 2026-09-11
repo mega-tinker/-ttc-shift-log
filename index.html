@@ -8,11 +8,12 @@
 <meta name="apple-mobile-web-app-title" content="TTC Log">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles.css?v=6f">
+<link rel="stylesheet" href="styles.css?v=7">
 <title>TTC Shift Log</title>
 </head>
 <body>
 <header class="topbar"><h1>TTC Shift Log</h1><p>Offline personal work record</p></header>
+
 <main>
 <nav class="tabs">
 <button class="tab active" data-tab="new">New Shift</button>
@@ -34,20 +35,35 @@
 <label>Actual Finish<input id="actualFinish" type="time"></label>
 
 <label>Paid<input id="paid" type="text" readonly><span class="hint">Scheduled Start → Scheduled Finish</span></label>
-<label>Actual OT<input id="actualOt" type="text" readonly><span class="hint">Scheduled Finish → Actual Finish</span></label>
-<label>Paid OT (2×)<input id="paidOt" type="text" readonly><span class="hint">Based on combined OT for the whole day</span></label>
-<label>Unpaid OT<input id="unpaidOt" type="text" readonly><span class="hint">Daily combined OT under 10 minutes</span></label>
+<label>Actual OT<input id="actualOt" type="text" readonly><span class="hint">Only calculated when Actual Finish is entered</span></label>
+<label>Paid OT (2×)<input id="paidOt" type="text" readonly><span class="hint">Daily combined OT 10+ min</span></label>
+<label>Unpaid OT<input id="unpaidOt" type="text" readonly><span class="hint">Daily combined OT under 10 min</span></label>
 
-<label>Step-back Missed?<select id="stepbackMissed"><option>No</option><option>Yes</option></select></label>
+<label>Step-back Missed?
+<select id="stepbackMissed"><option>No</option><option>Yes</option></select></label>
 <label>Step-back Time (1×)<input id="stepbackTime" type="text" inputmode="numeric" placeholder="0:15"></label>
-<label>Side Camera<select id="camera"><option>Unknown</option><option>Yes</option><option>No</option></select></label>
-<label>Incident<select id="incident"><option>None</option><option>Passenger</option><option>Collision</option><option>Mirror</option><option>Bus Defect</option><option>Road Closure</option><option>Police / EMS</option><option>Other</option></select></label>
+
+<label>Side Camera
+<select id="camera"><option>Unknown</option><option>Yes</option><option>No</option></select></label>
+
+<label>Incident
+<select id="incident">
+<option>None</option><option>Passenger</option><option>Collision</option><option>Mirror</option>
+<option>Bus Defect</option><option>Road Closure</option><option>Police / EMS</option><option>Other</option>
+</select></label>
 </div>
 
-<label class="full">Photos<input id="photos" type="file" accept="image/*" multiple><span class="hint">Take or choose multiple photos</span></label>
+<label class="full">Photos
+<input id="photos" type="file" accept="image/*" multiple>
+<span class="hint">Take or choose multiple photos</span></label>
 <div id="photoPreview" class="photo-preview"></div>
+
 <label class="full">Notes<textarea id="notes" rows="5" placeholder="Anything useful you may want to remember..."></textarea></label>
-<div class="actions"><button class="primary" type="submit">Save Shift</button><button class="secondary" type="button" id="clearForm">Clear</button></div>
+
+<div class="actions">
+<button class="primary" type="submit">Save Shift</button>
+<button class="secondary" type="button" id="clearForm">Clear</button>
+</div>
 <p id="saveMessage" class="message"></p>
 </form>
 </section>
@@ -65,13 +81,16 @@
 <label>Crew<input id="filterCrew" type="text" placeholder="e.g. 5109"></label>
 <label>Run<input id="filterRun" type="text" placeholder="e.g. 5 or 25"></label>
 <label>Bus<input id="filterBus" type="text" inputmode="numeric" placeholder="e.g. 6683"></label>
-<label>OT<select id="filterOt"><option value="all">All</option><option value="paid">Paid OT only</option><option value="unpaid">Unpaid OT only</option><option value="none">No OT</option><option value="pending">OT pending</option></select></label>
+<label>OT<select id="filterOt"><option value="all">All</option><option value="paid">Paid OT only</option><option value="unpaid">Unpaid OT only</option><option value="none">No OT</option></select></label>
 <label>Step-back<select id="filterStepback"><option value="all">All</option><option value="missed">Missed only</option><option value="not-missed">Not missed</option></select></label>
 <label>Incident<select id="filterIncident"><option value="all">All</option><option value="any">Any incident</option><option>None</option><option>Passenger</option><option>Collision</option><option>Mirror</option><option>Bus Defect</option><option>Road Closure</option><option>Police / EMS</option><option>Other</option></select></label>
 <label>Side Camera<select id="filterCamera"><option value="all">All</option><option>Yes</option><option>No</option><option>Unknown</option></select></label>
 <label>Photos<select id="filterPhotos"><option value="all">All</option><option value="has">Has photos</option><option value="none">No photos</option></select></label>
 </div>
-<div class="filter-actions"><button id="clearFilters" class="secondary" type="button">Clear Filters</button><span id="filterCount" class="filter-count"></span></div>
+<div class="filter-actions">
+<button id="clearFilters" class="secondary" type="button">Clear Filters</button>
+<span id="filterCount" class="filter-count"></span>
+</div>
 </details>
 </div>
 <div id="historyList" class="cards"></div>
@@ -150,6 +169,7 @@
 <button id="deletePhoto" class="danger small" type="button">Delete Photo</button>
 </div>
 </div>
-<script src="app.js?v=6f"></script>
+
+<script src="app.js?v=7"></script>
 </body>
 </html>
