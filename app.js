@@ -40,7 +40,13 @@ function recalc(){
   $("paidOt").value="0:00";$("unpaidOt").value="0:00";
 }
 ["scheduledStart","scheduledFinish","actualFinish"].forEach(id=>{$(id).addEventListener("input",recalc);$(id).addEventListener("change",recalc)});
-$("stepbackMissed").onchange=function(){if(this.value==="No")$("stepbackTime").value=""};
+function updateStepbackUI(){
+  const off=$("stepbackMissed").value==="No";
+  if(off)$("stepbackTime").value="";
+  $("stepbackTime").disabled=off;
+  $("stepbackTimeWrap").classList.toggle("is-disabled",off);
+}
+$("stepbackMissed").onchange=updateStepbackUI;
 
 function switchTab(name){
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
@@ -53,7 +59,7 @@ document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>switchTab(b.dataset.t
 function reset(){
   editingId=null;pendingPhotos=[];$("shiftForm").reset();
   $("date").value=today();$("camera").value="Unknown";$("incident").value="None";$("stepbackMissed").value="No";$("overtimeWork").value="No";
-  $("paid").value="";$("actualOt").value=$("paidOt").value=$("unpaidOt").value="0:00";
+  $("paid").value="";$("actualOt").value=$("paidOt").value=$("unpaidOt").value="0:00";updateStepbackUI();
   $("saveMessage").textContent="";document.querySelector("#shiftForm .primary").textContent="Save Shift";renderPending();
 }
 
@@ -67,16 +73,46 @@ async function compress(file){
 $("photos").onchange=async e=>{for(const f of Array.from(e.target.files||[])){try{pendingPhotos.push({id:String(Date.now())+Math.random(),data:await compress(f),addedAt:new Date().toISOString(),keep:false})}catch{}}e.target.value="";renderPending()};
 function renderPending(){const b=$("photoPreview");b.innerHTML="";pendingPhotos.forEach((p,i)=>{const w=document.createElement("div");w.className="thumb-wrap";w.innerHTML='<img class="thumb" src="'+p.data+'"><button type="button" style="position:absolute;right:-5px;top:-5px;border:0;background:#7f1d1d;color:white;border-radius:50%;width:24px;height:24px">×</button>';w.querySelector("button").onclick=()=>{pendingPhotos.splice(i,1);renderPending()};b.appendChild(w)})}
 
-$("shiftForm").onsubmit=e=>{
-  e.preventDefault();recalc();
+function saveCurrentShift(keepForNext=false){
+  recalc();
   const records=load(),old=editingId?records.find(r=>r.id===editingId):null;
   const r={id:editingId||String(Date.now())+Math.random(),date:$("date").value,routes:$("routes").value.trim(),crew:$("crew").value.trim(),run:$("run").value.trim(),bus:$("bus").value.trim(),scheduledStart:$("scheduledStart").value,scheduledFinish:$("scheduledFinish").value,actualFinish:$("actualFinish").value,overtimeWork:$("overtimeWork").value,paid:$("paid").value,actualOt:$("actualOt").value,paidOt:$("paidOt").value,unpaidOt:$("unpaidOt").value,stepbackMissed:$("stepbackMissed").value,stepbackTime:$("stepbackTime").value.trim(),camera:$("camera").value,incident:$("incident").value,notes:$("notes").value.trim(),photos:[...(old?.photos||[]),...pendingPhotos]};
   const i=records.findIndex(x=>x.id===r.id);if(i>=0)records[i]=r;else records.push(r);
   reclassify(records);
-  try{save(records);$("saveMessage").textContent=editingId?"Shift updated.":"Shift saved.";renderHistory();renderSummary();setTimeout(reset,600)}
-  catch{$("saveMessage").textContent="Storage full. Back up and remove old photos."}
+  try{
+    save(records);
+    renderHistory();renderSummary();
+    if(keepForNext){
+      const keepDate=r.date,keepCrew=r.crew;
+      reset();
+      $("date").value=keepDate;
+      $("crew").value=keepCrew;
+      $("saveMessage").textContent="Saved. Ready for the next piece.";
+      $("routes").focus();
+    }else{
+      $("saveMessage").textContent=editingId?"Shift updated.":"Shift saved.";
+      setTimeout(reset,600);
+    }
+    return true;
+  }catch{
+    $("saveMessage").textContent="Storage full. Back up and remove old photos.";
+    return false;
+  }
+}
+$("shiftForm").onsubmit=e=>{e.preventDefault();saveCurrentShift(false)};
+$("saveNextPiece").onclick=()=>{
+  if(!$("shiftForm").reportValidity())return;
+  saveCurrentShift(true);
 };
 $("clearForm").onclick=reset;
+$("noOtButton").onclick=()=>{
+  const finish=$("scheduledFinish").value;
+  if(!finish){$("saveMessage").textContent="Enter Scheduled Finish first.";return}
+  $("actualFinish").value=finish;
+  recalc();
+  $("saveMessage").textContent="Actual Finish set to scheduled finish — no OT.";
+  setTimeout(()=>{if($("saveMessage").textContent.includes("no OT"))$("saveMessage").textContent=""},1600);
+};
 
 function expired(p){if(!p?.addedAt||p.keep)return false;const a=new Date(p.addedAt),c=new Date();c.setMonth(c.getMonth()-6);return a<c}
 
@@ -115,12 +151,26 @@ function renderHistory(){
 function edit(id){
   const r=load().find(x=>x.id===id);if(!r)return;editingId=id;pendingPhotos=[];
   ["date","routes","crew","run","bus","scheduledStart","scheduledFinish","actualFinish","overtimeWork","stepbackTime","camera","incident","notes"].forEach(k=>$(k).value=r[k]||"");
-  $("stepbackMissed").value=r.stepbackMissed||"No";$("overtimeWork").value=r.overtimeWork||"No";recalc();document.querySelector("#shiftForm .primary").textContent="Update Shift";switchTab("new");window.scrollTo(0,0);
+  $("stepbackMissed").value=r.stepbackMissed||"No";$("overtimeWork").value=r.overtimeWork||"No";updateStepbackUI();recalc();document.querySelector("#shiftForm .primary").textContent="Update Shift";switchTab("new");window.scrollTo(0,0);
 }
 function del(id){if(confirm("Delete this shift record?")){const r=reclassify(load().filter(x=>x.id!==id));save(r);renderHistory();renderSummary()}}
 
-["search","sortOrder","filterFrom","filterTo","filterRoute","filterCrew","filterRun","filterBus","filterOt","filterStepback","filterIncident","filterCamera","filterPhotos"].forEach(id=>{const el=$(id);el.addEventListener("input",renderHistory);el.addEventListener("change",renderHistory)});
-$("clearFilters").onclick=()=>{$("search").value="";$("sortOrder").value="newest";["filterFrom","filterTo","filterRoute","filterCrew","filterRun","filterBus"].forEach(id=>$(id).value="");["filterOt","filterStepback","filterIncident","filterCamera","filterPhotos"].forEach(id=>$(id).value="all");renderHistory()};
+function activeFilterCount(){
+  let n=0;
+  if($("search").value.trim())n++;
+  if($("sortOrder").value!=="newest")n++;
+  ["filterFrom","filterTo","filterRoute","filterCrew","filterRun","filterBus"].forEach(id=>{if($(id).value.trim())n++});
+  ["filterOt","filterStepback","filterIncident","filterCamera","filterPhotos"].forEach(id=>{if($(id).value!=="all")n++});
+  return n;
+}
+function updateFilterState(){
+  const n=activeFilterCount(),box=document.querySelector(".filter-box");
+  box.classList.toggle("filters-active",n>0);
+  $("filterBadge").textContent=n?`${n} active`:"None";
+  $("clearFilters").classList.toggle("has-filters",n>0);
+}
+["search","sortOrder","filterFrom","filterTo","filterRoute","filterCrew","filterRun","filterBus","filterOt","filterStepback","filterIncident","filterCamera","filterPhotos"].forEach(id=>{const el=$(id);el.addEventListener("input",()=>{updateFilterState();renderHistory()});el.addEventListener("change",()=>{updateFilterState();renderHistory()})});
+$("clearFilters").onclick=()=>{$("search").value="";$("sortOrder").value="newest";["filterFrom","filterTo","filterRoute","filterCrew","filterRun","filterBus"].forEach(id=>$(id).value="");["filterOt","filterStepback","filterIncident","filterCamera","filterPhotos"].forEach(id=>$(id).value="all");updateFilterState();renderHistory()};
 
 function total(records,f){return records.reduce((s,r)=>s+mins(r[f]),0)}
 function renderSummary(){
@@ -207,7 +257,7 @@ $("importJson").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{
 $("deleteAll").onclick=()=>{if(confirm("Delete ALL TTC records from this device?")){localStorage.removeItem(KEY);renderHistory();renderSummary()}};
 
 currentWeekStart=sundayOf(today());
-reclassify(load());reset();renderHistory();renderSummary();
+reclassify(load());reset();updateFilterState();renderHistory();renderSummary();
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=8").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=9").catch(()=>{}));
 });
