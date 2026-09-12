@@ -132,7 +132,13 @@ function filteredRecords(){
     const has=(x.photos||[]).length>0;if(ph==="has"&&!has)return false;if(ph==="none"&&has)return false;
     return true;
   });
-  r.sort((a,b)=>{const c=String(a.date||"").localeCompare(String(b.date||""));return $("sortOrder").value==="oldest"?c:-c});
+  r.sort((a,b)=>{
+    const dateCmp=String(a.date||"").localeCompare(String(b.date||""));
+    if(dateCmp!==0)return $("sortOrder").value==="oldest"?dateCmp:-dateCmp;
+    const aStart=diff("00:00",a.scheduledStart||"00:00");
+    const bStart=diff("00:00",b.scheduledStart||"00:00");
+    return $("sortOrder").value==="oldest" ? aStart-bStart : bStart-aStart;
+  });
   return r;
 }
 
@@ -259,5 +265,5 @@ $("deleteAll").onclick=()=>{if(confirm("Delete ALL TTC records from this device?
 currentWeekStart=sundayOf(today());
 reclassify(load());reset();updateFilterState();renderHistory();renderSummary();
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=9").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=10").catch(()=>{}));
 });
