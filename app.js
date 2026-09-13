@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded",function(){
 const KEY="ttcShiftRecordsV4";
-let editingId=null,pendingPhotos=[],modalCtx=null,currentWeekStart=null;
+let editingId=null,pendingPhotos=[],modalCtx=null,currentWeekStart=null,lastDeleted=null,undoTimer=null;
 const $=id=>document.getElementById(id);
 
 function load(){try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){return[]}}
@@ -57,7 +57,7 @@ function switchTab(name){
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
 
 function reset(){
-  editingId=null;pendingPhotos=[];$("shiftForm").reset();
+  editingId=null;pendingPhotos=[];$("shiftForm").reset();$("editDeleteZone").classList.add("hidden");
   $("date").value=today();$("camera").value="Unknown";$("incident").value="None";$("stepbackMissed").value="No";$("overtimeWork").value="No";
   $("paid").value="";$("actualOt").value=$("paidOt").value=$("unpaidOt").value="0:00";updateStepbackUI();
   $("saveMessage").textContent="";document.querySelector("#shiftForm .primary").textContent="Save Shift";renderPending();
@@ -147,8 +147,8 @@ function renderHistory(){
   if(!records.length){list.innerHTML='<div class="record-card">No matching records.</div>';return}
   records.forEach(r=>{
     const c=document.createElement("article");c.className="record-card";
-    c.innerHTML=`<div class="card-head"><div><strong>${r.date||""}</strong><span class="card-route">Route(s): ${r.routes||""}</span></div><button class="edit-btn">Edit</button></div><div class="card-grid"><div><b>Crew:</b> ${r.crew||""}</div><div><b>Run:</b> ${r.run||""}</div><div><b>Bus:</b> ${r.bus||""}</div><div><b>Start:</b> ${r.scheduledStart||""}</div><div><b>Scheduled Finish:</b> ${r.scheduledFinish||""}</div><div><b>Actual Finish:</b> ${r.actualFinish||"—"}</div><div><b>Overtime Work:</b> ${r.overtimeWork==="Yes"?"Yes (1.5×)":"No"}</div><div><b>Paid:</b> ${r.paid||""}</div><div><b>Actual OT:</b> ${r.actualOt||"0:00"}</div><div><b>Paid OT (2×):</b> ${r.paidOt||"0:00"}</div><div><b>Unpaid OT:</b> ${r.unpaidOt||"0:00"}</div><div><b>Step-back:</b> ${r.stepbackMissed||"No"} ${r.stepbackTime||""}</div><div><b>Camera:</b> ${r.camera||""}</div><div><b>Incident:</b> ${r.incident||""}</div></div><div class="history-photos"></div><div class="card-notes"></div><button class="delete-btn">Delete</button>`;
-    c.querySelector(".card-notes").textContent=r.notes||"";c.querySelector(".edit-btn").onclick=()=>edit(r.id);c.querySelector(".delete-btn").onclick=()=>del(r.id);
+    c.innerHTML=`<div class="card-head"><div><strong>${r.date||""}</strong><span class="card-route">Route(s): ${r.routes||""}</span></div><button class="edit-btn">Edit</button></div><div class="card-grid"><div><b>Crew:</b> ${r.crew||""}</div><div><b>Run:</b> ${r.run||""}</div><div><b>Bus:</b> ${r.bus||""}</div><div><b>Start:</b> ${r.scheduledStart||""}</div><div><b>Scheduled Finish:</b> ${r.scheduledFinish||""}</div><div><b>Actual Finish:</b> ${r.actualFinish||"—"}</div><div><b>Overtime Work:</b> ${r.overtimeWork==="Yes"?"Yes (1.5×)":"No"}</div><div><b>Paid:</b> ${r.paid||""}</div><div><b>Actual OT:</b> ${r.actualOt||"0:00"}</div><div><b>Paid OT (2×):</b> ${r.paidOt||"0:00"}</div><div><b>Unpaid OT:</b> ${r.unpaidOt||"0:00"}</div><div><b>Step-back:</b> ${r.stepbackMissed||"No"} ${r.stepbackTime||""}</div><div><b>Camera:</b> ${r.camera||""}</div><div><b>Incident:</b> ${r.incident||""}</div></div><div class="history-photos"></div><div class="card-notes"></div>`;
+    c.querySelector(".card-notes").textContent=r.notes||"";c.querySelector(".edit-btn").onclick=()=>edit(r.id);
     const pb=c.querySelector(".history-photos");(r.photos||[]).forEach(p=>{const w=document.createElement("div");w.className="thumb-wrap";w.innerHTML='<img class="thumb" src="'+p.data+'">'+(p.keep?'<span class="keep-badge">Keep</span>':expired(p)?'<span class="expired-badge">6+ mo</span>':'');w.querySelector("img").onclick=()=>openPhoto(r.id,p.id);pb.appendChild(w)});
     list.appendChild(c);
   });
@@ -157,9 +157,33 @@ function renderHistory(){
 function edit(id){
   const r=load().find(x=>x.id===id);if(!r)return;editingId=id;pendingPhotos=[];
   ["date","routes","crew","run","bus","scheduledStart","scheduledFinish","actualFinish","overtimeWork","stepbackTime","camera","incident","notes"].forEach(k=>$(k).value=r[k]||"");
-  $("stepbackMissed").value=r.stepbackMissed||"No";$("overtimeWork").value=r.overtimeWork||"No";updateStepbackUI();recalc();document.querySelector("#shiftForm .primary").textContent="Update Shift";switchTab("new");window.scrollTo(0,0);
+  $("stepbackMissed").value=r.stepbackMissed||"No";$("overtimeWork").value=r.overtimeWork||"No";updateStepbackUI();recalc();document.querySelector("#shiftForm .primary").textContent="Update Shift";$("editDeleteZone").classList.remove("hidden");switchTab("new");window.scrollTo(0,0);
 }
-function del(id){if(confirm("Delete this shift record?")){const r=reclassify(load().filter(x=>x.id!==id));save(r);renderHistory();renderSummary()}}
+function showUndoToast(){
+  $("undoToast").classList.remove("hidden");
+  clearTimeout(undoTimer);
+  undoTimer=setTimeout(()=>{$("undoToast").classList.add("hidden");lastDeleted=null},7000);
+}
+function deleteEditedShift(){
+  if(!editingId)return;
+  const records=load(),idx=records.findIndex(x=>x.id===editingId);
+  if(idx<0)return;
+  const rec=records[idx];
+  if(!confirm(`Delete this shift permanently?\n\n${rec.date||""} · Route ${rec.routes||"—"} · Run ${rec.run||"—"}\n\nYou will have 7 seconds to Undo.`))return;
+  lastDeleted={record:rec,index:idx};
+  records.splice(idx,1);
+  reclassify(records);save(records);
+  reset();renderHistory();renderSummary();switchTab("history");showUndoToast();
+}
+$("deleteEditingShift").onclick=deleteEditedShift;
+$("undoDelete").onclick=()=>{
+  if(!lastDeleted)return;
+  const records=load(),i=Math.min(Math.max(lastDeleted.index,0),records.length);
+  records.splice(i,0,lastDeleted.record);
+  reclassify(records);save(records);
+  lastDeleted=null;clearTimeout(undoTimer);$("undoToast").classList.add("hidden");
+  renderHistory();renderSummary();
+};
 
 function activeFilterCount(){
   let n=0;
@@ -265,5 +289,5 @@ $("deleteAll").onclick=()=>{if(confirm("Delete ALL TTC records from this device?
 currentWeekStart=sundayOf(today());
 reclassify(load());reset();updateFilterState();renderHistory();renderSummary();
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=10").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=11").catch(()=>{}));
 });

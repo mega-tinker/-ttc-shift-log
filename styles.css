@@ -77,3 +77,14 @@ input[readonly]{background:#f3f4f6;font-weight:800}
   .form-section{padding:13px}
   .quick-grid input,.quick-grid select{padding:12px 9px}
 }
+
+/* v11 safer History deletion */
+.edit-delete-zone{margin:14px 2px 4px;padding:13px;border:1px solid #fecaca;background:#fff7f7;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.edit-delete-zone.hidden{display:none}
+.edit-delete-zone strong{display:block;color:#991b1b;font-size:13px}
+.edit-delete-zone span{display:block;color:#6b7280;font-size:11px;margin-top:2px}
+.danger-outline{border:1px solid #dc2626;background:#fff;color:#b91c1c;border-radius:11px;padding:10px 12px;font-weight:850;white-space:nowrap}
+.undo-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom));z-index:1200;max-width:420px;width:calc(100% - 28px);background:#111827;color:#fff;border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 10px 35px rgba(0,0,0,.28)}
+.undo-toast.hidden{display:none}
+.undo-toast span{font-weight:750}
+.undo-toast button{border:0;background:#fff;color:#111827;border-radius:9px;padding:8px 12px;font-weight:900}

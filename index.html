@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="TTC Log">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles.css?v=10">
+<link rel="stylesheet" href="styles.css?v=11">
 <title>TTC Shift Log</title>
 </head>
 <body>
@@ -114,6 +114,10 @@
   </label>
 </details>
 
+<div id="editDeleteZone" class="edit-delete-zone hidden">
+  <div><strong>Delete this shift</strong><span>Only available while editing this record.</span></div>
+  <button id="deleteEditingShift" class="danger-outline" type="button">Delete This Shift</button>
+</div>
 <div class="save-bar">
   <button class="primary save-main" type="submit">Save Shift</button>
   <button class="secondary" type="button" id="saveNextPiece">Save & Next Piece</button>
@@ -217,6 +221,9 @@
 </section>
 </main>
 
+<div id="undoToast" class="undo-toast hidden">
+  <span>Shift deleted</span><button id="undoDelete" type="button">Undo</button>
+</div>
 <div id="photoModal" class="modal hidden">
 <div class="modal-card">
 <button id="closeModal" class="modal-close">×</button>
@@ -226,6 +233,6 @@
 </div>
 </div>
 
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>
