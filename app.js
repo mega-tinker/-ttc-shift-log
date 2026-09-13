@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded",function(){
 const KEY="ttcShiftRecordsV4";
-let editingId=null,pendingPhotos=[],modalCtx=null,currentWeekStart=null,lastDeleted=null,undoTimer=null;
+let editingId=null,pendingPhotos=[],modalCtx=null,currentWeekStart=null,lastDeleted=null,undoTimer=null,editSnapshot=null;
 const $=id=>document.getElementById(id);
 
 function load(){try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){return[]}}
@@ -57,7 +57,7 @@ function switchTab(name){
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
 
 function reset(){
-  editingId=null;pendingPhotos=[];$("shiftForm").reset();$("editDeleteZone").classList.add("hidden");
+  editingId=null;editSnapshot=null;pendingPhotos=[];$("shiftForm").reset();$("editDeleteZone").classList.add("hidden");$("cancelEdit").classList.add("hidden");document.querySelector(".save-bar").classList.remove("editing");
   $("date").value=today();$("camera").value="Unknown";$("incident").value="None";$("stepbackMissed").value="No";$("overtimeWork").value="No";
   $("paid").value="";$("actualOt").value=$("paidOt").value=$("unpaidOt").value="0:00";updateStepbackUI();
   $("saveMessage").textContent="";document.querySelector("#shiftForm .primary").textContent="Save Shift";renderPending();
@@ -154,10 +154,33 @@ function renderHistory(){
   });
 }
 
+function getEditState(){
+  return JSON.stringify({
+    date:$("date").value,routes:$("routes").value,crew:$("crew").value,run:$("run").value,bus:$("bus").value,
+    scheduledStart:$("scheduledStart").value,scheduledFinish:$("scheduledFinish").value,actualFinish:$("actualFinish").value,
+    overtimeWork:$("overtimeWork").value,stepbackMissed:$("stepbackMissed").value,stepbackTime:$("stepbackTime").value,
+    camera:$("camera").value,incident:$("incident").value,notes:$("notes").value
+  });
+}
+function cancelEditing(){
+  if(!editingId){switchTab("history");return}
+  const changed=editSnapshot!==null && getEditState()!==editSnapshot;
+  if(changed && !confirm("Discard your changes?"))return;
+  reset();
+  switchTab("history");
+  window.scrollTo(0,0);
+}
+$("cancelEdit").onclick=cancelEditing;
+
 function edit(id){
   const r=load().find(x=>x.id===id);if(!r)return;editingId=id;pendingPhotos=[];
   ["date","routes","crew","run","bus","scheduledStart","scheduledFinish","actualFinish","overtimeWork","stepbackTime","camera","incident","notes"].forEach(k=>$(k).value=r[k]||"");
-  $("stepbackMissed").value=r.stepbackMissed||"No";$("overtimeWork").value=r.overtimeWork||"No";updateStepbackUI();recalc();document.querySelector("#shiftForm .primary").textContent="Update Shift";$("editDeleteZone").classList.remove("hidden");switchTab("new");window.scrollTo(0,0);
+  $("stepbackMissed").value=r.stepbackMissed||"No";$("overtimeWork").value=r.overtimeWork||"No";updateStepbackUI();recalc();document.querySelector("#shiftForm .primary").textContent="Update Shift";
+  $("editDeleteZone").classList.remove("hidden");
+  $("cancelEdit").classList.remove("hidden");
+  document.querySelector(".save-bar").classList.add("editing");
+  editSnapshot=getEditState();
+  switchTab("new");window.scrollTo(0,0);
 }
 function showUndoToast(){
   $("undoToast").classList.remove("hidden");
@@ -289,5 +312,5 @@ $("deleteAll").onclick=()=>{if(confirm("Delete ALL TTC records from this device?
 currentWeekStart=sundayOf(today());
 reclassify(load());reset();updateFilterState();renderHistory();renderSummary();
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=11").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=12").catch(()=>{}));
 });
