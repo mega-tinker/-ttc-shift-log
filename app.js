@@ -273,7 +273,7 @@ function renderSummary(){
   $("allBuses").textContent=new Set(all.map(r=>r.bus).filter(Boolean)).size;
   $("allIncidents").textContent=all.filter(r=>r.incident&&r.incident!=="None").length;
   const photos=all.flatMap(r=>r.photos||[]);
-  $("allPhotos").textContent=photos.length;
+  $("allPhotos").textContent=photos.length;$("allNotes").textContent=all.filter(r=>String(r.notes||"").trim()).length;
   $("allPaid").textContent=hm(total(all,"paid"));
   const ex=photos.filter(expired).length;$("expiredInfo").textContent=ex?ex+" photo(s) older than 6 months and not marked Keep.":"No expired photos.";
 }
@@ -288,6 +288,34 @@ function openWork(type){
   if(type==="buses"){title="Buses";const m={};all.forEach(r=>{if(r.bus)m[r.bus]=(m[r.bus]||0)+1});rows=Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([k,v])=>["Bus "+k,v+" shift(s)",()=>{$("filterBus").value=k;switchTab("history")}])}
   if(type==="incidents"){title="Incidents";rows=all.filter(r=>r.incident&&r.incident!=="None").sort((a,b)=>b.date.localeCompare(a.date)).map(r=>[r.date+" · "+r.incident,"Route "+r.routes+" · Bus "+r.bus,()=>{$("search").value=r.date;$("filterIncident").value=r.incident;switchTab("history")}])}
   if(type==="photos"){title="Shifts With Photos";rows=all.filter(r=>(r.photos||[]).length).sort((a,b)=>b.date.localeCompare(a.date)).map(r=>[r.date+" · Route "+r.routes,(r.photos||[]).length+" photo(s)",()=>{$("search").value=r.date;$("filterPhotos").value="has";switchTab("history")}])}
+  if(type==="notes"){
+    title="Notes";
+    rows=all.filter(r=>String(r.notes||"").trim())
+      .sort((a,b)=>{
+        const dc=String(b.date||"").localeCompare(String(a.date||""));
+        if(dc!==0)return dc;
+        const aStart=diff("00:00",a.scheduledStart||"00:00");
+        const bStart=diff("00:00",b.scheduledStart||"00:00");
+        return bStart-aStart;
+      })
+      .map(r=>[
+        (r.date||"")+" · Route "+(r.routes||"—"),
+        "Run "+(r.run||"—")+" · Bus "+(r.bus||"—")+"\n"+String(r.notes||"").trim(),
+        ()=>{
+          $("search").value=(r.date||"");
+          switchTab("history");
+          renderHistory();
+          setTimeout(()=>{
+            const cards=[...document.querySelectorAll(".record-card")];
+            const card=cards.find(c=>{
+              const t=c.textContent||"";
+              return t.includes("Run: "+(r.run||"")) && t.includes("Bus: "+(r.bus||""));
+            });
+            if(card)card.scrollIntoView({behavior:"smooth",block:"center"});
+          },50);
+        }
+      ]);
+  }
   if(type==="paid"){title="Overall Paid";const m={};all.forEach(r=>{const y=(r.date||"").slice(0,4);m[y]=(m[y]||0)+mins(r.paid)});rows=Object.entries(m).sort((a,b)=>b[0].localeCompare(a[0])).map(([k,v])=>[k,hm(v),()=>{$("filterFrom").value=k+"-01-01";$("filterTo").value=k+"-12-31";switchTab("history")}])}
 
   box.innerHTML='<div class="drill-title"><h3>'+title+'</h3><button id="closeDrill" class="secondary">Close</button></div>';
@@ -312,5 +340,5 @@ $("deleteAll").onclick=()=>{if(confirm("Delete ALL TTC records from this device?
 currentWeekStart=sundayOf(today());
 reclassify(load());reset();updateFilterState();renderHistory();renderSummary();
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=12").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=13").catch(()=>{}));
 });

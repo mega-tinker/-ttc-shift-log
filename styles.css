@@ -95,3 +95,6 @@ input[readonly]{background:#f3f4f6;font-weight:800}
 .save-bar.editing{grid-template-columns:1fr 1fr}
 .save-bar.editing #saveNextPiece,.save-bar.editing #clearForm{display:none}
 @media(max-width:600px){.save-bar.editing{grid-template-columns:1fr 1fr}.save-bar.editing .cancel-edit{min-height:46px}}
+
+/* v13 notes drill-down */
+.drill-meta{white-space:pre-wrap}
