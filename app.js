@@ -1,4 +1,8 @@
 document.addEventListener("DOMContentLoaded",function(){
+document.addEventListener("gesturestart",function(e){e.preventDefault()},{passive:false});
+document.addEventListener("gesturechange",function(e){e.preventDefault()},{passive:false});
+document.addEventListener("gestureend",function(e){e.preventDefault()},{passive:false});
+
 const KEY="ttcShiftRecordsV4";
 let editingId=null,pendingPhotos=[],modalCtx=null,currentWeekStart=null,lastDeleted=null,undoTimer=null,editSnapshot=null;
 const $=id=>document.getElementById(id);
@@ -340,5 +344,5 @@ $("deleteAll").onclick=()=>{if(confirm("Delete ALL TTC records from this device?
 currentWeekStart=sundayOf(today());
 reclassify(load());reset();updateFilterState();renderHistory();renderSummary();
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=13").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=14").catch(()=>{}));
 });

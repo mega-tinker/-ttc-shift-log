@@ -98,3 +98,9 @@ input[readonly]{background:#f3f4f6;font-weight:800}
 
 /* v13 notes drill-down */
 .drill-meta{white-space:pre-wrap}
+
+/* v14 iPhone anti-zoom */
+input,select,textarea,button{font-size:16px}
+@media(max-width:600px){
+  input,select,textarea{font-size:16px !important}
+}
