@@ -8,13 +8,13 @@
 <meta name="apple-mobile-web-app-title" content="TTC Log">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles.css?v=17">
+<link rel="stylesheet" href="styles.css?v=18">
 <title>TTC Shift Log</title>
 </head>
 <body>
-<header class="topbar"><div class="brand-mark">TTC</div><div><h1>Shift Log</h1><p>Offline personal work record</p></div></header>
+<header class="topbar"><div class="brand-mark">TTC</div><div><h1>Shift Log</h1><p>Offline personal work record · v18</p></div></header>
 
-<main>
+<main><p id="dataError" class="error-banner hidden" role="alert"></p>
 <nav class="tabs">
 <button class="tab active" data-tab="new"><span class="tab-icon">＋</span><span>New Shift</span></button>
 <button class="tab" data-tab="history"><span class="tab-icon">◷</span><span>History</span></button>
@@ -55,6 +55,8 @@
     <label>Actual Finish<input id="actualFinish" type="time"></label>
   </div>
 
+  <label class="finish-day">Actual Finish Day<select id="actualFinishDay"><option value="0">Same day as scheduled finish</option><option value="1">Next day after scheduled finish</option></select></label>
+  <p id="finishDayHelp" class="micro-note"></p>
   <button id="noOtButton" class="quick-action" type="button">No OT — use scheduled finish</button>
 
   <div class="pay-preview">
@@ -63,7 +65,7 @@
     <div class="pay-chip"><span>Paid OT 2×</span><input id="paidOt" type="text" readonly></div>
     <div class="pay-chip"><span>Unpaid OT</span><input id="unpaidOt" type="text" readonly></div>
   </div>
-  <p class="micro-note">OT is combined with any other shift you enter on the same date.</p>
+  <p id="dailyOtPreview" class="daily-ot-preview"></p><p class="micro-note">OT is combined with any other shift you enter on the same date.</p>
 </div>
 
 <div class="form-section">
@@ -124,7 +126,7 @@
   <button class="secondary" type="button" id="saveNextPiece">Save & Next Piece</button>
   <button class="text-button" type="button" id="clearForm">Clear</button>
 </div>
-<p id="saveMessage" class="message"></p>
+<p id="draftStatus" class="draft-status" aria-live="polite"></p><p id="saveMessage" class="message"></p>
 </form>
 </section>
 
@@ -165,10 +167,10 @@
 
 <div class="summary-section pay-period-card">
 <div class="summary-kicker">WEEK AT A GLANCE</div>
-<div class="weekly-hero"><div><span>Total Paid</span><strong id="weekHeroPaid">0:00</strong></div><div class="weekly-hero-meta"><span id="weekHeroShifts">0 shifts</span><span id="weekHeroRoutes">0 routes</span></div></div>
-<h2>Pay Period Totals</h2>
-<div class="pay-row"><span>Total Paid</span><strong id="weekTotalPaid">0:00</strong></div>
-<div class="pay-row"><span>Platform Regular &lt; 8</span><strong id="weekPlatformLt8">0:00</strong></div>
+<div class="weekly-hero"><div><span>Paid · scheduled hours</span><strong id="weekHeroPaid">0:00</strong></div><div class="weekly-hero-meta"><span id="weekHeroShifts">0 shifts</span><span id="weekHeroRoutes">0 routes</span></div></div>
+<h2>Weekly Pay Categories</h2>
+
+<div class="pay-row"><span>Platform Regular ≤ 8</span><strong id="weekPlatformLt8">0:00</strong></div>
 <div class="pay-row"><span>Platform Regular &gt; 8 <small>1.5×</small></span><strong id="weekPlatformGt8">0:00</strong></div>
 <div class="pay-row"><span>Overtime Work <small>1.5×</small></span><strong id="weekOvertimeWork">0:00</strong></div>
 <div class="pay-row"><span>OT Late In <small>2×</small></span><strong id="weekPaidOt">0:00</strong></div>
@@ -187,7 +189,7 @@
 <details class="summary-section daily-details">
 <summary>Daily Breakdown</summary>
 <div class="table-scroll"><table class="daily-table">
-<thead><tr><th>Date</th><th>Route(s)</th><th>Bus(es)</th><th>Platform</th><th>&lt;8</th><th>&gt;8</th><th>OT 2×</th><th>Unpaid OT</th><th>Step-back</th></tr></thead>
+<thead><tr><th>Date</th><th>Route(s)</th><th>Bus(es)</th><th>Platform</th><th>≤8</th><th>&gt;8</th><th>OT 2×</th><th>Unpaid OT</th><th>Step-back</th></tr></thead>
 <tbody id="dailyBreakdownBody"></tbody>
 </table></div>
 </details>
@@ -219,10 +221,11 @@
 <div class="backup-action-card"><div><strong>Export CSV</strong><span>Spreadsheet copy of your shift records.</span></div><button id="exportCsv" class="secondary">Export CSV</button></div>
 <div class="backup-action-card"><div><strong>Import Backup</strong><span>Choose a backup. Nothing changes until you review it.</span></div><label class="file-button">Choose Backup<input id="importJson" type="file" accept=".json,application/json"></label></div>
 <div id="importPreview" class="import-preview hidden"><div class="preview-head"><strong>Backup Preview</strong><button id="cancelImport" class="text-button">Cancel</button></div>
-<div class="preview-grid"><div><span>Date Range</span><strong id="previewRange">—</strong></div><div><span>Backup Shifts</span><strong id="previewShifts">0</strong></div><div><span>New Shifts</span><strong id="previewNew">0</strong></div><div><span>Already Existing</span><strong id="previewDuplicates">0</strong></div><div><span>Notes</span><strong id="previewNotes">0</strong></div><div><span>Photos</span><strong id="previewPhotos">0</strong></div></div>
-<div class="import-actions"><button id="mergeImport" class="primary">Merge New Data</button><button id="replaceImport" class="secondary">Replace Current Data</button></div><p class="micro-note">Merge skips matching shifts. Replace creates a safety backup first.</p></div>
-<details class="data-management"><summary>Advanced / Data Management</summary><div class="danger-zone"><strong>Danger Zone</strong><p>Permanently delete all shift records and photos.</p><button id="openDeleteAll" class="danger-outline">Delete All App Data…</button>
-<div id="deleteAllConfirm" class="delete-confirm hidden"><p>Type <b>DELETE</b> to enable permanent deletion. A last-chance backup will be created first.</p><input id="deleteConfirmText" type="text" autocomplete="off" placeholder="Type DELETE"><div class="danger-actions"><button id="cancelDeleteAll" class="secondary">Cancel</button><button id="confirmDeleteAll" class="danger" disabled>Delete Everything</button></div></div></div></details>
+<div class="preview-grid"><div><span>Date Range</span><strong id="previewRange">—</strong></div><div><span>Backup Shifts</span><strong id="previewShifts">0</strong></div><div><span>New Shifts</span><strong id="previewNew">0</strong></div><div><span>Identical</span><strong id="previewDuplicates">0</strong></div><div><span>Changed</span><strong id="previewChanged">0</strong></div><div><span>Notes</span><strong id="previewNotes">0</strong></div><div><span>Photos</span><strong id="previewPhotos">0</strong></div></div>
+<div id="importConflicts"></div><div class="import-actions"><button id="mergeImport" class="primary">Merge New Data</button><button id="replaceImport" class="secondary">Replace Current Data</button></div><p class="micro-note">Merge adds new shifts and applies your choices for changed records. A local recovery copy is kept before changes. Save a downloaded backup independently.</p></div>
+<p id="backupStatus" aria-live="polite"></p><details class="data-management"><summary>Recovery tools</summary><p>Local recovery copies are on this device, not independent backups.</p><button id="restoreDeleted" class="secondary">Restore Last Deleted Shift</button><button id="restoreRecovery" class="secondary">Restore Previous Data</button><button id="downloadRecovery" class="secondary">Download Recovery Copy</button><button id="downloadRaw" class="secondary">Download Stored Data</button></details>
+<details class="data-management"><summary>Advanced / Data Management</summary><div class="danger-zone"><strong>Danger Zone</strong><p>Delete active shift records and photos. Local recovery data remains available.</p><button id="openDeleteAll" class="danger-outline">Delete All App Data…</button>
+<div id="deleteAllConfirm" class="delete-confirm hidden"><p>Type <b>DELETE</b> to enable permanent deletion. A backup download will be requested and a local recovery copy kept first. Confirm downloaded files in Files.</p><input id="deleteConfirmText" type="text" autocomplete="off" placeholder="Type DELETE"><div class="danger-actions"><button id="cancelDeleteAll" class="secondary">Cancel</button><button id="confirmDeleteAll" class="danger" disabled>Delete Everything</button></div></div></div></details>
 </div></section></main>
 
 <div id="undoToast" class="undo-toast hidden">
@@ -237,6 +240,7 @@
 </div>
 </div>
 
-<script src="app.js?v=17"></script>
+<script src="core.js?v=18"></script>
+<script src="app.js?v=18"></script>
 </body>
 </html>

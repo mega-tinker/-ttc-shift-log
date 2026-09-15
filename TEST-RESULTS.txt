@@ -1,0 +1,34 @@
+TTC Shift Log v18 — Verification
+
+PASS: JavaScript syntax checks.
+PASS: Eight automated core tests (node --test tests/core.test.cjs): early/equal/
+blank finishes; midnight; daily 9/10/11-minute boundaries; date isolation;
+normal vs overtime-work category splitting; legacy/versioned validation;
+changed fields/photos; ambiguous imports.
+
+PASS: Full app startup and event-handler workflow checks in a simulated DOM:
+- Supplied 11-record backup remains byte-for-byte unchanged when opened.
+- History renders 11 cards and 7 daily headers; scheduled total 56:52.
+- Weekly category and live daily OT checks.
+- Save/edit retains IDs, updates daily classifications and preserves recovery.
+- Draft restore and draft storage failure handling.
+- Identical imports, default keep, selected correction, repeated imports.
+- Invalid backup leaves current data unchanged.
+- CSV has actual row breaks; versioned JSON retains records.
+- Exact-record drill-down clears unrelated filters.
+- Deleted record recovery survives simulated page reload.
+- Corrupt data is untouched until explicit validated replacement.
+- Synthetic photo retained across import/delete/recovery.
+- Storage-failed save leaves the existing data and entry form intact.
+
+LIMITATIONS
+The workflow checks used simulated DOM controls, not a real rendering engine.
+A browser executable was unavailable, and its download timed out. Therefore
+visual layout, Safari/Home Screen behavior, device photo capture/compression,
+actual downloaded-file delivery and service-worker offline/update behavior
+have not been verified in a real browser or on an iPhone. Follow the README's
+online update and offline checks. Source-level asset references and service-
+worker cache contents were checked for completeness.
+
+No personal backup or photos are embedded in this update package. The supplied
+user backup was used only as a compatibility fixture outside the package.
