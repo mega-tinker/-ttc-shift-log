@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="TTC Log">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles.css?v=15">
+<link rel="stylesheet" href="styles.css?v=16">
 <title>TTC Shift Log</title>
 </head>
 <body>
@@ -36,9 +36,9 @@
   </div>
 
   <div class="quick-grid">
-    <label>Route(s)<input id="routes" type="text" placeholder="51 or 11 / 51" required></label>
-    <label>Crew<input id="crew" type="text" placeholder="5109" required></label>
-    <label>Run<input id="run" type="text" placeholder="5 or 25" required></label>
+    <label>Route(s)<input id="routes" type="text" placeholder="51 or 11 / 51" required inputmode="numeric"><div class="route-suffixes" aria-label="Route suffix"><button type="button" data-route-suffix="A">A</button><button type="button" data-route-suffix="B">B</button><button type="button" data-route-suffix="C">C</button><button type="button" data-route-suffix="D">D</button><button type="button" data-route-suffix="E">E</button><button type="button" data-route-suffix="F">F</button><button type="button" data-route-suffix="Clear">⌫ Letter</button></div></label>
+    <label>Crew<input id="crew" type="text" placeholder="5109" required inputmode="numeric"></label>
+    <label>Run<input id="run" type="text" placeholder="5 or 25" required inputmode="numeric"></label>
     <label>Bus<input id="bus" type="text" inputmode="numeric" placeholder="6602" required></label>
   </div>
 </div>
@@ -235,6 +235,6 @@
 </div>
 </div>
 
-<script src="app.js?v=15"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>

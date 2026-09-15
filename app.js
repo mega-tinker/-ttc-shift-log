@@ -1,4 +1,6 @@
 document.addEventListener("DOMContentLoaded",function(){
+document.addEventListener("click",function(e){const b=e.target.closest("[data-route-suffix]");if(!b)return;const el=$("routes");if(!el)return;const s=b.dataset.routeSuffix;if(s==="Clear")el.value=el.value.replace(/[A-Za-z]+$/,"");else el.value=el.value.replace(/[A-Za-z]+$/,"")+s;el.dispatchEvent(new Event("input",{bubbles:true}));el.focus()});
+
 document.addEventListener("gesturestart",function(e){e.preventDefault()},{passive:false});
 document.addEventListener("gesturechange",function(e){e.preventDefault()},{passive:false});
 document.addEventListener("gestureend",function(e){e.preventDefault()},{passive:false});
@@ -359,5 +361,5 @@ $("confirmDeleteAll").onclick=()=>{if($("deleteConfirmText").value.trim()!=="DEL
 currentWeekStart=sundayOf(today());
 reclassify(load());reset();updateFilterState();renderHistory();renderSummary();
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=15").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=16").catch(()=>{}));
 });
