@@ -4,7 +4,7 @@ document.addEventListener("gesturechange",function(e){e.preventDefault()},{passi
 document.addEventListener("gestureend",function(e){e.preventDefault()},{passive:false});
 
 const KEY="ttcShiftRecordsV4";
-let editingId=null,pendingPhotos=[],modalCtx=null,currentWeekStart=null,lastDeleted=null,undoTimer=null,editSnapshot=null;
+let editingId=null,pendingPhotos=[],modalCtx=null,currentWeekStart=null,lastDeleted=null,undoTimer=null,editSnapshot=null,pendingImport=null;
 const $=id=>document.getElementById(id);
 
 function load(){try{return JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){return[]}}
@@ -338,11 +338,26 @@ $("deletePhoto").onclick=()=>{if(!modalCtx||!confirm("Delete this photo?"))retur
 function download(content,name,type){const b=new Blob([content],{type}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000)}
 $("exportCsv").onclick=()=>{const h=["Date","Route(s)","Crew","Run","Bus","Scheduled Start","Scheduled Finish","Actual Finish","Overtime Work 1.5x","Paid","Actual OT","Paid OT 2x","Unpaid OT","Step-back Missed","Step-back Time 1x","Side Camera","Incident","Notes","Photo Count"],rows=load().map(r=>[r.date,r.routes,r.crew,r.run,r.bus,r.scheduledStart,r.scheduledFinish,r.actualFinish,r.overtimeWork||"No",r.paid,r.actualOt,r.paidOt,r.unpaidOt,r.stepbackMissed,r.stepbackTime,r.camera,r.incident,r.notes,(r.photos||[]).length]),csv=[h,...rows].map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\\n");download(csv,"TTC_Shift_Log.csv","text/csv;charset=utf-8")};
 $("exportJson").onclick=()=>download(JSON.stringify(load(),null,2),"TTC_Shift_Log_Backup.json","application/json");
-$("importJson").onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d))throw 0;reclassify(d);if(confirm("Restore "+d.length+" records? This replaces current records.")){save(d);renderHistory();renderSummary();alert("Backup restored.")}}catch{alert("Could not read backup file.")}e.target.value=""};
-$("deleteAll").onclick=()=>{if(confirm("Delete ALL TTC records from this device?")){localStorage.removeItem(KEY);renderHistory();renderSummary()}};
+function shiftFingerprint(r){return [r.date||"",r.routes||"",r.crew||"",r.run||"",r.bus||"",r.scheduledStart||"",r.scheduledFinish||""].map(v=>String(v).trim().toLowerCase()).join("|")}
+function clearImportPreview(){pendingImport=null;$("importJson").value="";$("importPreview").classList.add("hidden")}
+$("importJson").onchange=async e=>{
+ const f=e.target.files?.[0];if(!f)return;
+ try{const d=JSON.parse(await f.text());if(!Array.isArray(d))throw 0;pendingImport=d;
+ const cur=load(),existing=new Set(cur.map(shiftFingerprint)),seen=new Set(),u=[];
+ d.forEach(r=>{const fp=shiftFingerprint(r);if(!seen.has(fp)){seen.add(fp);u.push(r)}});
+ const newN=u.filter(r=>!existing.has(shiftFingerprint(r))).length,dates=u.map(r=>r.date).filter(Boolean).sort();
+ $("previewRange").textContent=dates.length?dates[0]+" – "+dates[dates.length-1]:"—";$("previewShifts").textContent=u.length;$("previewNew").textContent=newN;$("previewDuplicates").textContent=u.length-newN;$("previewNotes").textContent=u.filter(r=>String(r.notes||"").trim()).length;$("previewPhotos").textContent=u.reduce((s,r)=>s+(r.photos||[]).length,0);$("importPreview").classList.remove("hidden");
+ }catch{clearImportPreview();alert("This does not look like a valid TTC Shift Log backup.")}};
+$("cancelImport").onclick=clearImportPreview;
+$("mergeImport").onclick=()=>{if(!pendingImport)return;const cur=load(),seen=new Set(cur.map(shiftFingerprint)),merged=[...cur];let added=0;pendingImport.forEach(r=>{const fp=shiftFingerprint(r);if(!seen.has(fp)){seen.add(fp);merged.push(r);added++}});reclassify(merged);save(merged);clearImportPreview();renderHistory();renderSummary();alert(added+" new shift(s) imported. Matching shifts were skipped.")};
+$("replaceImport").onclick=()=>{if(!pendingImport)return;if(!confirm("Replace all current app data with this backup?\n\nA safety backup of your current data will be created first."))return;const incoming=pendingImport;download(JSON.stringify(load(),null,2),"TTC_Shift_Log_Pre_Restore_Safety_Backup.json","application/json");reclassify(incoming);save(incoming);clearImportPreview();renderHistory();renderSummary();alert("Backup restored. Your previous data was saved as a safety backup.")};
+$("openDeleteAll").onclick=()=>{$("deleteAllConfirm").classList.remove("hidden");$("deleteConfirmText").value="";$("confirmDeleteAll").disabled=true;$("deleteConfirmText").focus()};
+$("cancelDeleteAll").onclick=()=>{$("deleteAllConfirm").classList.add("hidden");$("deleteConfirmText").value="";$("confirmDeleteAll").disabled=true};
+$("deleteConfirmText").oninput=()=>{$("confirmDeleteAll").disabled=$("deleteConfirmText").value.trim()!=="DELETE"};
+$("confirmDeleteAll").onclick=()=>{if($("deleteConfirmText").value.trim()!=="DELETE")return;if(!confirm("Final confirmation: permanently delete ALL TTC Log data from this device?"))return;download(JSON.stringify(load(),null,2),"TTC_Shift_Log_Last_Chance_Backup.json","application/json");localStorage.removeItem(KEY);$("deleteAllConfirm").classList.add("hidden");$("deleteConfirmText").value="";renderHistory();renderSummary();alert("All app data was deleted. A last-chance backup was created.")};
 
 currentWeekStart=sundayOf(today());
 reclassify(load());reset();updateFilterState();renderHistory();renderSummary();
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=14").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=15").catch(()=>{}));
 });

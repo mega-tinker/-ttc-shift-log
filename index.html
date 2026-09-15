@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="TTC Log">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles.css?v=14">
+<link rel="stylesheet" href="styles.css?v=15">
 <title>TTC Shift Log</title>
 </head>
 <body>
@@ -211,17 +211,17 @@
 </div>
 </section>
 
-<section id="backup" class="panel">
-<div class="backup-box">
-<h2>Backup & Export</h2>
-<p>Your records and photos are stored on this device. Export backups regularly.</p>
-<button id="exportCsv" class="primary">Export CSV</button>
-<button id="exportJson" class="secondary">Backup JSON</button>
-<label class="full">Restore JSON Backup<input id="importJson" type="file" accept=".json,application/json"></label>
-<button id="deleteAll" class="danger">Delete All Records</button>
-</div>
-</section>
-</main>
+<section id="backup" class="panel"><div class="backup-box">
+<h2>Backup & Data</h2><p>Protect your TTC work records and move data safely.</p>
+<div class="backup-action-card"><div><strong>Create Backup</strong><span>Complete backup including attached photos.</span></div><button id="exportJson" class="primary">Create Backup</button></div>
+<div class="backup-action-card"><div><strong>Export CSV</strong><span>Spreadsheet copy of your shift records.</span></div><button id="exportCsv" class="secondary">Export CSV</button></div>
+<div class="backup-action-card"><div><strong>Import Backup</strong><span>Choose a backup. Nothing changes until you review it.</span></div><label class="file-button">Choose Backup<input id="importJson" type="file" accept=".json,application/json"></label></div>
+<div id="importPreview" class="import-preview hidden"><div class="preview-head"><strong>Backup Preview</strong><button id="cancelImport" class="text-button">Cancel</button></div>
+<div class="preview-grid"><div><span>Date Range</span><strong id="previewRange">—</strong></div><div><span>Backup Shifts</span><strong id="previewShifts">0</strong></div><div><span>New Shifts</span><strong id="previewNew">0</strong></div><div><span>Already Existing</span><strong id="previewDuplicates">0</strong></div><div><span>Notes</span><strong id="previewNotes">0</strong></div><div><span>Photos</span><strong id="previewPhotos">0</strong></div></div>
+<div class="import-actions"><button id="mergeImport" class="primary">Merge New Data</button><button id="replaceImport" class="secondary">Replace Current Data</button></div><p class="micro-note">Merge skips matching shifts. Replace creates a safety backup first.</p></div>
+<details class="data-management"><summary>Advanced / Data Management</summary><div class="danger-zone"><strong>Danger Zone</strong><p>Permanently delete all shift records and photos.</p><button id="openDeleteAll" class="danger-outline">Delete All App Data…</button>
+<div id="deleteAllConfirm" class="delete-confirm hidden"><p>Type <b>DELETE</b> to enable permanent deletion. A last-chance backup will be created first.</p><input id="deleteConfirmText" type="text" autocomplete="off" placeholder="Type DELETE"><div class="danger-actions"><button id="cancelDeleteAll" class="secondary">Cancel</button><button id="confirmDeleteAll" class="danger" disabled>Delete Everything</button></div></div></div></details>
+</div></section></main>
 
 <div id="undoToast" class="undo-toast hidden">
   <span>Shift deleted</span><button id="undoDelete" type="button">Undo</button>
@@ -235,6 +235,6 @@
 </div>
 </div>
 
-<script src="app.js?v=14"></script>
+<script src="app.js?v=15"></script>
 </body>
 </html>
