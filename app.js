@@ -42,7 +42,7 @@ function recalc(){
   ["paid","actualOt","paidOt","unpaidOt"].forEach(k=>$(k).value=result[k]);
   $("dailyOtPreview").textContent="Day's late OT: "+hm(d.actual)+" · "+(d.actual>=10?"paid at 2×":"unpaid below 0:10");
   const next=$("scheduledStart").value&&$("scheduledFinish").value&&$("scheduledFinish").value<$("scheduledStart").value;
-  $("finishDayHelp").textContent=next?"Scheduled finish is the day after the shift date.":"Finish day is relative to the scheduled finish.";
+  $("finishDayHelp").textContent=!r.actualFinish?"Actual Finish is optional. Leave it blank when you are not late — late OT is 0:00.":next?"Scheduled finish is the day after the shift date.":"Finish day is relative to the scheduled finish.";
 }
 ["date","scheduledStart","scheduledFinish","actualFinish","actualFinishDay"].forEach(id=>{$(id).addEventListener("input",recalc);$(id).addEventListener("change",recalc)});
 
@@ -122,11 +122,9 @@ $("saveNextPiece").onclick=()=>{
 };
 $("clearForm").onclick=()=>{if(photoBusy)return;if(getDraftState()!==draftBaseline&&!confirm("Discard this unfinished entry?"))return;reset();};
 $("noOtButton").onclick=()=>{
-  const finish=$("scheduledFinish").value;
-  if(!finish){$("saveMessage").textContent="Enter Scheduled Finish first.";return}
-  $("actualFinish").value=finish;$("actualFinishDay").value="0";
+  $("actualFinish").value="";$("actualFinishDay").value="0";
   recalc();persistDraft();
-  $("saveMessage").textContent="Actual Finish set to scheduled finish — no OT.";
+  $("saveMessage").textContent="Actual Finish left blank — no OT.";
   setTimeout(()=>{if($("saveMessage").textContent.includes("no OT"))$("saveMessage").textContent=""},1600);
 };
 
@@ -430,5 +428,5 @@ try{
  }
 }catch(error){notifyError(error);switchTab("backup");}
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=18").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=18.1").catch(()=>{}));
 });

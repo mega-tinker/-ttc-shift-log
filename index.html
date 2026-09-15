@@ -8,11 +8,11 @@
 <meta name="apple-mobile-web-app-title" content="TTC Log">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles.css?v=18">
+<link rel="stylesheet" href="styles.css?v=18.1">
 <title>TTC Shift Log</title>
 </head>
 <body>
-<header class="topbar"><div class="brand-mark">TTC</div><div><h1>Shift Log</h1><p>Offline personal work record · v18</p></div></header>
+<header class="topbar"><div class="brand-mark">TTC</div><div><h1>Shift Log</h1><p>Offline personal work record · v18.1</p></div></header>
 
 <main><p id="dataError" class="error-banner hidden" role="alert"></p>
 <nav class="tabs">
@@ -52,12 +52,12 @@
   <div class="time-grid">
     <label>Start<input id="scheduledStart" type="time" required></label>
     <label>Scheduled Finish<input id="scheduledFinish" type="time" required></label>
-    <label>Actual Finish<input id="actualFinish" type="time"></label>
+    <label>Actual Finish (optional)<input id="actualFinish" type="time"></label>
   </div>
 
   <label class="finish-day">Actual Finish Day<select id="actualFinishDay"><option value="0">Same day as scheduled finish</option><option value="1">Next day after scheduled finish</option></select></label>
   <p id="finishDayHelp" class="micro-note"></p>
-  <button id="noOtButton" class="quick-action" type="button">No OT — use scheduled finish</button>
+  <button id="noOtButton" class="quick-action" type="button">No OT — leave Actual Finish blank</button>
 
   <div class="pay-preview">
     <div class="pay-chip"><span>Paid</span><input id="paid" type="text" readonly></div>
@@ -240,7 +240,7 @@
 </div>
 </div>
 
-<script src="core.js?v=18"></script>
-<script src="app.js?v=18"></script>
+<script src="core.js?v=18.1"></script>
+<script src="app.js?v=18.1"></script>
 </body>
 </html>
