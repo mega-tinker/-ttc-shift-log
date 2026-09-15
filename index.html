@@ -8,18 +8,18 @@
 <meta name="apple-mobile-web-app-title" content="TTC Log">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles.css?v=16">
+<link rel="stylesheet" href="styles.css?v=17">
 <title>TTC Shift Log</title>
 </head>
 <body>
-<header class="topbar"><h1>TTC Shift Log</h1><p>Offline personal work record</p></header>
+<header class="topbar"><div class="brand-mark">TTC</div><div><h1>Shift Log</h1><p>Offline personal work record</p></div></header>
 
 <main>
 <nav class="tabs">
-<button class="tab active" data-tab="new">New Shift</button>
-<button class="tab" data-tab="history">History</button>
-<button class="tab" data-tab="summary">Summary</button>
-<button class="tab" data-tab="backup">Backup</button>
+<button class="tab active" data-tab="new"><span class="tab-icon">＋</span><span>New Shift</span></button>
+<button class="tab" data-tab="history"><span class="tab-icon">◷</span><span>History</span></button>
+<button class="tab" data-tab="summary"><span class="tab-icon">▥</span><span>Summary</span></button>
+<button class="tab" data-tab="backup"><span class="tab-icon">⇅</span><span>Backup</span></button>
 </nav>
 
 <section id="new" class="panel active">
@@ -163,7 +163,9 @@
 <button id="nextWeek" class="secondary week-btn" type="button">Next Week ›</button>
 </div>
 
-<div class="summary-section">
+<div class="summary-section pay-period-card">
+<div class="summary-kicker">WEEK AT A GLANCE</div>
+<div class="weekly-hero"><div><span>Total Paid</span><strong id="weekHeroPaid">0:00</strong></div><div class="weekly-hero-meta"><span id="weekHeroShifts">0 shifts</span><span id="weekHeroRoutes">0 routes</span></div></div>
 <h2>Pay Period Totals</h2>
 <div class="pay-row"><span>Total Paid</span><strong id="weekTotalPaid">0:00</strong></div>
 <div class="pay-row"><span>Platform Regular &lt; 8</span><strong id="weekPlatformLt8">0:00</strong></div>
@@ -235,6 +237,6 @@
 </div>
 </div>
 
-<script src="app.js?v=16"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>

@@ -150,11 +150,44 @@ function filteredRecords(){
 
 function renderHistory(){
   const records=filteredRecords(),all=load(),list=$("historyList");$("filterCount").textContent=records.length+" of "+all.length+" shift(s)";list.innerHTML="";
-  if(!records.length){list.innerHTML='<div class="record-card">No matching records.</div>';return}
+  if(!records.length){list.innerHTML='<div class="record-card empty-state"><strong>No matching records</strong><span>Try changing your search or filters.</span></div>';return}
   records.forEach(r=>{
-    const c=document.createElement("article");c.className="record-card";
-    c.innerHTML=`<div class="card-head"><div><strong>${r.date||""}</strong><span class="card-route">Route(s): ${r.routes||""}</span></div><button class="edit-btn">Edit</button></div><div class="card-grid"><div><b>Crew:</b> ${r.crew||""}</div><div><b>Run:</b> ${r.run||""}</div><div><b>Bus:</b> ${r.bus||""}</div><div><b>Start:</b> ${r.scheduledStart||""}</div><div><b>Scheduled Finish:</b> ${r.scheduledFinish||""}</div><div><b>Actual Finish:</b> ${r.actualFinish||"—"}</div><div><b>Overtime Work:</b> ${r.overtimeWork==="Yes"?"Yes (1.5×)":"No"}</div><div><b>Paid:</b> ${r.paid||""}</div><div><b>Actual OT:</b> ${r.actualOt||"0:00"}</div><div><b>Paid OT (2×):</b> ${r.paidOt||"0:00"}</div><div><b>Unpaid OT:</b> ${r.unpaidOt||"0:00"}</div><div><b>Step-back:</b> ${r.stepbackMissed||"No"} ${r.stepbackTime||""}</div><div><b>Camera:</b> ${r.camera||""}</div><div><b>Incident:</b> ${r.incident||""}</div></div><div class="history-photos"></div><div class="card-notes"></div>`;
-    c.querySelector(".card-notes").textContent=r.notes||"";c.querySelector(".edit-btn").onclick=()=>edit(r.id);
+    const paid=mins(r.paid),aot=mins(r.actualOt),pot=mins(r.paidOt),uot=mins(r.unpaidOt),sb=mins(r.stepbackTime);
+    const completed=!!r.actualFinish,inc=r.incident&&r.incident!=="None",photos=(r.photos||[]).length,note=String(r.notes||"").trim();
+    const flags=[];
+    if(r.overtimeWork==="Yes")flags.push('<span class="status-pill purple">OT Work · 1.5×</span>');
+    if(pot>0)flags.push('<span class="status-pill red">Paid OT · '+hm(pot)+' · 2×</span>');
+    else if(uot>0)flags.push('<span class="status-pill amber">Unpaid OT · '+hm(uot)+'</span>');
+    if(r.stepbackMissed==="Yes")flags.push('<span class="status-pill blue">Missed Step-back'+(sb?' · '+hm(sb):'')+'</span>');
+    if(inc)flags.push('<span class="status-pill danger">Incident · '+r.incident+'</span>');
+    if(photos)flags.push('<span class="status-pill neutral">📷 '+photos+'</span>');
+    if(note)flags.push('<span class="status-pill neutral">Note</span>');
+    const c=document.createElement("article");c.className="record-card rich-shift-card";
+    c.innerHTML=`<div class="shift-accent ${inc?'has-incident':pot?'has-ot':''}"></div>
+      <div class="card-head rich-head">
+        <div class="route-block"><span class="date-line">${r.date||""}</span><strong class="route-number">Route ${r.routes||"—"}</strong><span class="crew-line">Crew ${r.crew||"—"} · Run ${r.run||"—"} · Bus ${r.bus||"—"}</span></div>
+        <button class="edit-btn">Edit</button>
+      </div>
+      <div class="shift-time-story">
+        <div><span>START</span><strong>${r.scheduledStart||"—"}</strong></div><div class="time-arrow">→</div>
+        <div><span>SCHEDULED</span><strong>${r.scheduledFinish||"—"}</strong></div><div class="time-arrow">→</div>
+        <div class="${completed?'actual-done':'actual-pending'}"><span>ACTUAL</span><strong>${r.actualFinish||"Not entered"}</strong></div>
+      </div>
+      <div class="shift-pay-story">
+        <div class="metric-main"><span>PAID</span><strong>${r.paid||"0:00"}</strong><small>scheduled platform</small></div>
+        <div><span>ACTUAL OT</span><strong>${r.actualOt||"0:00"}</strong></div>
+        <div class="${pot?'metric-hot':''}"><span>PAID OT 2×</span><strong>${r.paidOt||"0:00"}</strong></div>
+        <div><span>UNPAID OT</span><strong>${r.unpaidOt||"0:00"}</strong></div>
+      </div>
+      <div class="status-strip">${flags.join("")||'<span class="status-pill good">Normal shift</span>'}</div>
+      <div class="detail-band">
+        <span><b>Side Camera</b> ${r.camera||"Unknown"}</span>
+        <span><b>Step-back</b> ${r.stepbackMissed==="Yes"?"Missed "+(r.stepbackTime||""):"No"}</span>
+        <span><b>Incident</b> ${r.incident||"None"}</span>
+      </div>
+      <div class="history-photos"></div><div class="card-notes"></div>`;
+    c.querySelector(".card-notes").textContent=note?("“"+note+"”"):"";
+    c.querySelector(".edit-btn").onclick=()=>edit(r.id);
     const pb=c.querySelector(".history-photos");(r.photos||[]).forEach(p=>{const w=document.createElement("div");w.className="thumb-wrap";w.innerHTML='<img class="thumb" src="'+p.data+'">'+(p.keep?'<span class="keep-badge">Keep</span>':expired(p)?'<span class="expired-badge">6+ mo</span>':'');w.querySelector("img").onclick=()=>openPhoto(r.id,p.id);pb.appendChild(w)});
     list.appendChild(c);
   });
@@ -237,7 +270,11 @@ function renderSummary(){
   if(!currentWeekStart)currentWeekStart=sundayOf(today());
   const end=addDays(currentWeekStart,6),startISO=iso(currentWeekStart),endISO=iso(end);
   $("weekRange").textContent=fmt(currentWeekStart)+" – "+fmt(end);
-  const week=all.filter(r=>r.date>=startISO&&r.date<=endISO),days={};
+  const week=all.filter(r=>r.date>=startISO&&r.date<=endISO),days={};const heroPaid=week.reduce((s,r)=>s+mins(r.paid)+mins(r.paidOt)+mins(r.stepbackTime),0);
+  $("weekHeroPaid").textContent=hm(heroPaid);
+  $("weekHeroShifts").textContent=week.length+" shift"+(week.length===1?"":"s");
+  const heroRoutes=new Set();week.forEach(r=>String(r.routes||"").split(/[\/,]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>heroRoutes.add(x)));
+  $("weekHeroRoutes").textContent=heroRoutes.size+" route"+(heroRoutes.size===1?"":"s");
   week.forEach(r=>(days[r.date]??=[]).push(r));
 
   let lt8=0,gt8=0,overtimeWork=0,actual=0,paidOt=0,unpaidOt=0,stepback=0;
@@ -361,5 +398,5 @@ $("confirmDeleteAll").onclick=()=>{if($("deleteConfirmText").value.trim()!=="DEL
 currentWeekStart=sundayOf(today());
 reclassify(load());reset();updateFilterState();renderHistory();renderSummary();
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=16").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=17").catch(()=>{}));
 });
