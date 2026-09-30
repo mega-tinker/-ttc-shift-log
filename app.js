@@ -15,6 +15,15 @@ window.addEventListener("error",e=>notifyError(e.error||Error(e.message)));
 window.addEventListener("unhandledrejection",e=>notifyError(e.reason||Error("Operation failed. Your records were not replaced.")));
 let editingId=null,pendingPhotos=[],modalCtx=null,currentWeekStart=null,lastDeleted=null,undoTimer=null,editSnapshot=null,pendingImport=null;
 const $=id=>document.getElementById(id);
+let cameraBus="";
+function autofillCamera(){
+  const bus=$("bus").value.trim();
+  if(bus===cameraBus)return; // Do not overwrite a manual choice on a repeated change event.
+  $("camera").value=TTC.cameraForBus(load(),bus);
+  cameraBus=bus;
+}
+$("bus").addEventListener("input",autofillCamera);
+$("bus").addEventListener("change",autofillCamera);
 
 function load(){
   const raw=localStorage.getItem(KEY);if(raw===null)return [];
@@ -66,6 +75,7 @@ function reset(){
   suppressDraft=true;localStorage.removeItem(DRAFT);
   editingId=null;editSnapshot=null;editRecordSnapshot=null;pendingPhotos=[];$("shiftForm").reset();$("editDeleteZone").classList.add("hidden");$("cancelEdit").classList.add("hidden");document.querySelector(".save-bar").classList.remove("editing");
   $("date").value=today();$("camera").value="Unknown";$("incident").value="None";$("stepbackMissed").value="No";$("overtimeWork").value="No";
+  cameraBus="";
   $("paid").value="";$("actualOt").value=$("paidOt").value=$("unpaidOt").value="0:00";updateStepbackUI();
   $("saveMessage").textContent="";document.querySelector("#shiftForm .primary").textContent="Save Shift";renderPending();
   $("actualFinishDay").value="0";$("draftStatus").textContent="";draftBaseline=getDraftState();suppressDraft=false;recalc();
@@ -232,6 +242,7 @@ function edit(id){
   localStorage.removeItem(DRAFT);
   const r=load().find(x=>x.id===id);if(!r)return;editingId=id;pendingPhotos=[];
   ["date","routes","crew","run","bus","scheduledStart","scheduledFinish","actualFinish","overtimeWork","stepbackTime","camera","incident","notes"].forEach(k=>$(k).value=r[k]||"");
+  cameraBus=$("bus").value.trim();
   $("actualFinishDay").value=String(r.actualFinishDay??(mins(r.actualFinish)<mins(r.scheduledFinish)&&mins(r.actualOt)>0?1:0));
   $("stepbackMissed").value=r.stepbackMissed||"No";$("overtimeWork").value=r.overtimeWork||"No";updateStepbackUI();recalc();document.querySelector("#shiftForm .primary").textContent="Update Shift";
   $("editDeleteZone").classList.remove("hidden");
@@ -422,11 +433,12 @@ try{
   try{const draft=JSON.parse(savedDraft);if(confirm("Restore your unfinished shift entry?")){
     const state=draft.state;editingId=state.editingId;pendingPhotos=state.photos||[];
     Object.entries(state.fields).forEach(([k,v])=>{if($(k))$(k).value=v;});editSnapshot=draft.editSnapshot;editRecordSnapshot=draft.editRecordSnapshot||null;
+    cameraBus=$("bus").value.trim();
     if(editingId){$("cancelEdit").classList.remove("hidden");$("editDeleteZone").classList.remove("hidden");document.querySelector(".save-bar").classList.add("editing");document.querySelector("#shiftForm .primary").textContent="Update Shift";}
     updateStepbackUI();recalc();renderPending();$("draftStatus").textContent="Draft restored — review and save";
   }else localStorage.removeItem(DRAFT);}catch(e){notifyError(Error("Draft could not be restored. Saved shift records are unchanged."));}
  }
 }catch(error){notifyError(error);switchTab("backup");}
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=18.2").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=18.3").catch(()=>{}));
 });

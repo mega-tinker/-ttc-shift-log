@@ -54,6 +54,17 @@
       return {incoming:r,current:old,kind:!old?'new':canonical({...r,id:old.id})===canonical(old)?'identical':'changed'};
     });
   }
-  const api={minutes,clock,duration,late,hm,classify,day,validate,fingerprint,importPlan};root.TTC=api;
+  // Use the latest dated observation, not import order. Unknown is not an observation.
+  function cameraForBus(records,bus){
+    const key=String(bus??'').trim();if(!key)return 'Unknown';
+    let latest=null;
+    for(const r of records){
+      if(String(r.bus??'').trim()!==key||!['Yes','No'].includes(r.camera))continue;
+      const stamp=String(r.date||'')+'T'+String(r.scheduledStart||'');
+      if(!latest||stamp>=latest.stamp)latest={stamp,camera:r.camera};
+    }
+    return latest?latest.camera:'Unknown';
+  }
+  const api={minutes,clock,duration,late,hm,classify,day,validate,fingerprint,importPlan,cameraForBus};root.TTC=api;
   if(typeof module!=='undefined')module.exports=api;
 })(typeof window==='undefined'?globalThis:window);
