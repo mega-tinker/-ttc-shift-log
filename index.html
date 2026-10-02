@@ -8,11 +8,11 @@
 <meta name="apple-mobile-web-app-title" content="TTC Log">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="stylesheet" href="styles.css?v=18.3">
+<link rel="stylesheet" href="styles.css?v=18.4">
 <title>TTC Shift Log</title>
 </head>
 <body>
-<header class="topbar"><div class="brand-mark">TTC</div><div><h1>Shift Log</h1><p>Offline personal work record · v18.3</p></div></header>
+<header class="topbar"><div class="brand-mark">TTC</div><div><h1>Shift Log</h1><p>Offline personal work record · v18.4</p></div></header>
 
 <main><p id="dataError" class="error-banner hidden" role="alert"></p>
 <nav class="tabs">
@@ -226,7 +226,21 @@
 <p id="backupStatus" aria-live="polite"></p><details class="data-management"><summary>Recovery tools</summary><p>Local recovery copies are on this device, not independent backups.</p><button id="restoreDeleted" class="secondary">Restore Last Deleted Shift</button><button id="restoreRecovery" class="secondary">Restore Previous Data</button><button id="downloadRecovery" class="secondary">Download Recovery Copy</button><button id="downloadRaw" class="secondary">Download Stored Data</button></details>
 <details class="data-management"><summary>Advanced / Data Management</summary><div class="danger-zone"><strong>Danger Zone</strong><p>Delete active shift records and photos. Local recovery data remains available.</p><button id="openDeleteAll" class="danger-outline">Delete All App Data…</button>
 <div id="deleteAllConfirm" class="delete-confirm hidden"><p>Type <b>DELETE</b> to enable permanent deletion. A backup download will be requested and a local recovery copy kept first. Confirm downloaded files in Files.</p><input id="deleteConfirmText" type="text" autocomplete="off" placeholder="Type DELETE"><div class="danger-actions"><button id="cancelDeleteAll" class="secondary">Cancel</button><button id="confirmDeleteAll" class="danger" disabled>Delete Everything</button></div></div></div></details>
-</div></section></main>
+</div></section>
+<details class="about-support">
+<summary>About &amp; Support</summary>
+<h2>Built by an operator</h2>
+<p><strong>Created by TTC Operator 31447.</strong> Built to make tracking shifts, platform time and overtime easier.</p>
+<p>An independent personal project. Not affiliated with or endorsed by the TTC.</p>
+<p>Your records are stored on this device. Export backups regularly and keep a copy outside the app.</p>
+<h3>Enjoying the app?</h3>
+<p>Donations are optional and help support continued development.</p>
+<p>To donate, send an <strong>Interac e-Transfer</strong> through your banking app to:</p>
+<p class="donation-email">mega.tinker@gmail.com</p>
+<button id="copyDonationEmail" class="secondary" type="button">Copy donation email</button>
+<p id="donationCopyStatus" role="status" aria-live="polite"></p>
+</details>
+</main>
 
 <div id="undoToast" class="undo-toast hidden">
   <span>Shift deleted</span><button id="undoDelete" type="button">Undo</button>
@@ -240,7 +254,7 @@
 </div>
 </div>
 
-<script src="core.js?v=18.3"></script>
-<script src="app.js?v=18.3"></script>
+<script src="core.js?v=18.4"></script>
+<script src="app.js?v=18.4"></script>
 </body>
 </html>

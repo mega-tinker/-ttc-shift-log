@@ -15,6 +15,14 @@ window.addEventListener("error",e=>notifyError(e.error||Error(e.message)));
 window.addEventListener("unhandledrejection",e=>notifyError(e.reason||Error("Operation failed. Your records were not replaced.")));
 let editingId=null,pendingPhotos=[],modalCtx=null,currentWeekStart=null,lastDeleted=null,undoTimer=null,editSnapshot=null,pendingImport=null;
 const $=id=>document.getElementById(id);
+$("copyDonationEmail").onclick=async()=>{
+  try{
+    await navigator.clipboard.writeText("mega.tinker@gmail.com");
+    $("donationCopyStatus").textContent="Email copied. Paste it into your banking app for Interac e-Transfer.";
+  }catch{
+    $("donationCopyStatus").textContent="Could not copy automatically. Touch and hold mega.tinker@gmail.com above, then choose Copy.";
+  }
+};
 let cameraBus="";
 function autofillCamera(){
   const bus=$("bus").value.trim();
@@ -440,5 +448,5 @@ try{
  }
 }catch(error){notifyError(error);switchTab("backup");}
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=18.3").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=18.4").catch(()=>{}));
 });
