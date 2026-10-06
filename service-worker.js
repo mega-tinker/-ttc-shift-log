@@ -1,5 +1,5 @@
-const CACHE='ttc-shift-log-v18.4';
-const ASSETS=['./','./index.html','./styles.css?v=18.4','./core.js?v=18.4','./app.js?v=18.4','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='ttc-shift-log-v19.0';
+const ASSETS=['./','./index.html','./styles.css?v=19.0','./core.js?v=19.0','./spareboard.js?v=19.0','./app.js?v=19.0','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('ttc-shift-log-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
 self.addEventListener('fetch',event=>{
