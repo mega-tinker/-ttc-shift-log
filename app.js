@@ -39,7 +39,7 @@ function load(){
 }
 function save(v){TTC.validate(v);sb.save(v);}
 function snapshot(){const raw=localStorage.getItem(KEY)||"[]";TTC.validate(JSON.parse(raw));sb.snapshot(raw);localStorage.setItem(RECOVERY,raw);}
-function backupData(records=load()){const metadata=sb.exportData(records),hasSpareboard=metadata.days.length||metadata.links.length;return {format:"TTC Shift Log",schemaVersion:hasSpareboard?2:1,appVersion:"19.0",exportedAt:new Date().toISOString(),records,...(hasSpareboard?{spareboard:metadata}:{})};}
+function backupData(records=load()){const metadata=sb.exportData(records),hasSpareboard=metadata.days.length||metadata.links.length;return {format:"TTC Shift Log",schemaVersion:hasSpareboard?2:1,appVersion:"19.0.1",exportedAt:new Date().toISOString(),records,...(hasSpareboard?{spareboard:metadata}:{})};}
 function backupDownload(name="TTC_Shift_Log_Backup_v19"){download(JSON.stringify(backupData(),null,2),name+"_"+today()+".json","application/json");}
 
 function today(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
@@ -463,5 +463,5 @@ try{
  }
 }catch(error){notifyError(error);switchTab("backup");}
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=19.0").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=19.0.1").catch(()=>{}));
 });

@@ -28,6 +28,8 @@ async function workflows(){
    return {dom,w,$,change,submit,alerts};
  }
  let a=await start({[S.SHIFT]:raw});let {$,w,change,submit}=a;
+ assert.equal($('stepbackTime').inputMode,'text','duration keyboard must allow a colon');
+ assert.equal($('sbGuaranteeTime').inputMode,'text','guarantee keyboard must allow a colon');
  assert.equal(w.localStorage.getItem(S.SHIFT),raw,'opening must not rewrite legacy data');assert.equal(w.localStorage.getItem(S.KEY),null);assert.equal($('assignmentType').value,'regular');assert.ok($('sbDetails').classList.contains('hidden'));assert.ok($('dataError').classList.contains('hidden'),$('dataError').textContent);
  // Edit old record without silently assigning Spareboard.
  w.document.querySelector('.edit-btn').click();assert.equal($('assignmentType').value,'regular');$('cancelEdit').click();assert.equal(w.localStorage.getItem(S.SHIFT),raw);
