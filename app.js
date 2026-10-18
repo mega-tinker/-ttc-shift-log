@@ -39,7 +39,7 @@ function load(){
 }
 function save(v){TTC.validate(v);sb.save(v);}
 function snapshot(){const raw=localStorage.getItem(KEY)||"[]";TTC.validate(JSON.parse(raw));sb.snapshot(raw);localStorage.setItem(RECOVERY,raw);}
-function backupData(records=load()){const metadata=sb.exportData(records),hasHoliday=(metadata.holidays||[]).length||(metadata.holidayLinks||[]).length,hasMetadata=hasHoliday||metadata.days.length||metadata.links.length;return {format:"TTC Shift Log",schemaVersion:hasHoliday?3:hasMetadata?2:1,appVersion:"19.1",exportedAt:new Date().toISOString(),records,...(hasMetadata?{spareboard:metadata}:{})};}
+function backupData(records=load()){const metadata=sb.exportData(records),hasHoliday=(metadata.holidays||[]).length||(metadata.holidayLinks||[]).length,hasMetadata=hasHoliday||metadata.days.length||metadata.links.length;return {format:"TTC Shift Log",schemaVersion:hasHoliday?3:hasMetadata?2:1,appVersion:"19.1.1",exportedAt:new Date().toISOString(),records,...(hasMetadata?{spareboard:metadata}:{})};}
 function backupDownload(name="TTC_Shift_Log_Backup_v19"){download(JSON.stringify(backupData(),null,2),name+"_"+today()+".json","application/json");}
 
 function today(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
@@ -332,7 +332,7 @@ function renderSummary(){
   holidayDates.forEach(date=>{days[date]??=[];});
   const holidayMinutes=holidayDates.reduce((n,date)=>n+sb.holidayCredit(date),0),holidayInfo=$("holidayWeekInfo");
   holidayInfo.classList.toggle("hidden",!holidayMinutes);
-  holidayInfo.textContent="Includes "+hm(holidayMinutes)+" holiday credit at 1× in Platform Regular ≤ 8. Scheduled work "+hm(heroPaid)+" + holiday credit "+hm(holidayMinutes)+" = "+hm(heroPaid+holidayMinutes)+" credited hours (before multipliers).";
+  holidayInfo.textContent="Holiday credit: "+hm(holidayMinutes)+" at 1× — already included in the Platform Regular ≤ 8 total above.";
 
   let lt8=0,gt8=0,overtimeWork=0,actual=0,paidOt=0,unpaidOt=0,stepback=0;
   const body=$("dailyBreakdownBody");body.innerHTML="";
@@ -470,5 +470,5 @@ try{
  }
 }catch(error){notifyError(error);switchTab("backup");}
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=19.1").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=19.1.1").catch(()=>{}));
 });
