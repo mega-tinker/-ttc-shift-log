@@ -39,7 +39,7 @@ function load(){
 }
 function save(v){TTC.validate(v);sb.save(v);}
 function snapshot(){const raw=localStorage.getItem(KEY)||"[]";TTC.validate(JSON.parse(raw));sb.snapshot(raw);localStorage.setItem(RECOVERY,raw);}
-function backupData(records=load()){const metadata=sb.exportData(records),hasSpareboard=metadata.days.length||metadata.links.length;return {format:"TTC Shift Log",schemaVersion:hasSpareboard?2:1,appVersion:"19.0.1",exportedAt:new Date().toISOString(),records,...(hasSpareboard?{spareboard:metadata}:{})};}
+function backupData(records=load()){const metadata=sb.exportData(records),hasHoliday=(metadata.holidays||[]).length||(metadata.holidayLinks||[]).length,hasMetadata=hasHoliday||metadata.days.length||metadata.links.length;return {format:"TTC Shift Log",schemaVersion:hasHoliday?3:hasMetadata?2:1,appVersion:"19.1",exportedAt:new Date().toISOString(),records,...(hasMetadata?{spareboard:metadata}:{})};}
 function backupDownload(name="TTC_Shift_Log_Backup_v19"){download(JSON.stringify(backupData(),null,2),name+"_"+today()+".json","application/json");}
 
 function today(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
@@ -126,7 +126,7 @@ function saveCurrentShift(keepForNext=false){
       const keepDate=r.date,keepCrew=r.crew,keepSpareboard=sb.state();
       reset();
       $("date").value=keepDate;
-      $("crew").value=keepCrew;if(keepSpareboard.mode==="spareboard"){keepSpareboard.base=undefined;sb.restore(keepSpareboard);}recalc();persistDraft();
+      $("crew").value=keepCrew;if(["spareboard","holiday"].includes(keepSpareboard.mode)){keepSpareboard.base=undefined;sb.restore(keepSpareboard);}recalc();persistDraft();
       $("saveMessage").textContent="Saved. Ready for the next piece.";
       $("routes").focus();
     }else{
@@ -185,7 +185,7 @@ function filteredRecords(){
 function renderHistory(){
   const records=filteredRecords(),all=reclassify(load()),list=$("historyList");$("filterCount").textContent=records.length+" of "+all.length+" shift(s)";list.innerHTML="";
   sb.renderDays();
-  if(!records.length){list.innerHTML='<div class="record-card empty-state"><strong>No matching work pieces</strong><span>'+($('sbHistoryDays').children.length?'Spareboard day details are shown above.':'Try changing your search or filters.')+'</span></div>';return}
+  if(!records.length){list.innerHTML='<div class="record-card empty-state"><strong>No matching work pieces</strong><span>'+(($('sbHistoryDays').children.length||$('holidayHistoryDays').children.length)?'Day details are shown above.':'Try changing your search or filters.')+'</span></div>';return}
   let lastDate=null;
   records.forEach(r=>{
     if(lastDate!==r.date){lastDate=r.date;const entries=all.filter(x=>x.date===r.date),d=TTC.day(entries),h=document.createElement("div");h.className="day-heading";
@@ -196,6 +196,7 @@ function renderHistory(){
     const completed=!!r.actualFinish,inc=r.incident&&r.incident!=="None",photos=(r.photos||[]).length,note=String(r.notes||"").trim();
     const flags=[];
     if(sb.linked(r))flags.push('<span class="status-pill blue">Spareboard</span>');
+    if(sb.holidayLinked(r))flags.push('<span class="status-pill blue">Holiday work</span>');
     if(r.overtimeWork==="Yes")flags.push('<span class="status-pill purple">OT Work · 1.5×</span>');
     if(pot>0)flags.push('<span class="status-pill red">Paid OT · '+hm(pot)+' · 2×</span>');
     else if(uot>0)flags.push('<span class="status-pill amber">Unpaid OT · '+hm(uot)+'</span>');
@@ -321,11 +322,17 @@ function renderSummary(){
   $("weekRange").textContent=fmt(currentWeekStart)+" – "+fmt(end);
   const week=all.filter(r=>r.date>=startISO&&r.date<=endISO),days={};const heroPaid=total(week,"paid");
   sb.summary(startISO,endISO);
+  sb.holidaySummary();
   $("weekHeroPaid").textContent=hm(heroPaid);
   $("weekHeroShifts").textContent=week.length+" shift"+(week.length===1?"":"s");
   const heroRoutes=new Set();week.forEach(r=>String(r.routes||"").split(/[\/,]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>heroRoutes.add(x)));
   $("weekHeroRoutes").textContent=heroRoutes.size+" route"+(heroRoutes.size===1?"":"s");
   week.forEach(r=>(days[r.date]??=[]).push(r));
+  const holidayDates=sb.holidayDates().filter(date=>date>=startISO&&date<=endISO);
+  holidayDates.forEach(date=>{days[date]??=[];});
+  const holidayMinutes=holidayDates.reduce((n,date)=>n+sb.holidayCredit(date),0),holidayInfo=$("holidayWeekInfo");
+  holidayInfo.classList.toggle("hidden",!holidayMinutes);
+  holidayInfo.textContent="Includes "+hm(holidayMinutes)+" holiday credit at 1× in Platform Regular ≤ 8. Scheduled work "+hm(heroPaid)+" + holiday credit "+hm(holidayMinutes)+" = "+hm(heroPaid+holidayMinutes)+" credited hours (before multipliers).";
 
   let lt8=0,gt8=0,overtimeWork=0,actual=0,paidOt=0,unpaidOt=0,stepback=0;
   const body=$("dailyBreakdownBody");body.innerHTML="";
@@ -334,14 +341,14 @@ function renderSummary(){
 
   keys.forEach(date=>{
     const entries=days[date];
-    const d=TTC.day(entries),dOvertimeWork=d.overtime,platform=d.platform,dlt=d.regular,dgt=d.above8,dactual=d.actual,dpaid=d.paidOt,dunpaid=d.unpaidOt,dstep=d.stepback;
+    const d=TTC.day(entries),holiday=sb.holidayCredit(date),dOvertimeWork=d.overtime,platform=d.platform,dlt=d.regular+holiday,dgt=d.above8,dactual=d.actual,dpaid=d.paidOt,dunpaid=d.unpaidOt,dstep=d.stepback;
 
     lt8+=dlt;gt8+=dgt;overtimeWork+=dOvertimeWork;actual+=dactual;paidOt+=dpaid;unpaidOt+=dunpaid;stepback+=dstep;
 
     const routes=[...new Set(entries.flatMap(r=>String(r.routes||"").split(/[\\/,]+/).map(x=>x.trim()).filter(Boolean)))].join(" / ");
     const buses=[...new Set(entries.map(r=>r.bus).filter(Boolean))].join(" / ");
     const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${esc(date)}</td><td>${esc(routes||"—")}</td><td>${esc(buses||"—")}</td><td>${hm(platform)}</td><td>${hm(dlt)}</td><td>${dgt?hm(dgt):"—"}</td><td>${dpaid?hm(dpaid):"—"}</td><td>${dunpaid?hm(dunpaid):"—"}</td><td>${dstep?hm(dstep):"—"}</td>`;
+    tr.innerHTML=`<td>${esc(date)}${holiday?'<br>Holiday credit 8:00':''}</td><td>${esc(routes||"—")}</td><td>${esc(buses||"—")}</td><td>${hm(platform)}</td><td>${hm(dlt)}</td><td>${dgt?hm(dgt):"—"}</td><td>${dpaid?hm(dpaid):"—"}</td><td>${dunpaid?hm(dunpaid):"—"}</td><td>${dstep?hm(dstep):"—"}</td>`;
     body.appendChild(tr);
   });
 
@@ -402,8 +409,8 @@ $("importJson").onchange=async e=>{
  const f=e.target.files?.[0];if(!f)return;
  try{
   const data=JSON.parse(await f.text());
-  if(data.schemaVersion===2&&(data.format!=="TTC Shift Log"||!data.spareboard))throw Error("Incomplete version 2 backup.");
-  const incoming=TTC.validate(data.schemaVersion===2?data.records:data);let cur=[];importCorrupt=false;try{cur=load();}catch{importCorrupt=true;}importBase=localStorage.getItem(KEY);$("mergeImport").disabled=importCorrupt;importPlan=TTC.importPlan(cur,incoming);sb.prepareImport(data,importPlan);pendingImport=incoming;
+  if([2,3].includes(data.schemaVersion)&&(data.format!=="TTC Shift Log"||!data.spareboard))throw Error("Incomplete assignment backup.");
+  const incoming=TTC.validate([2,3].includes(data.schemaVersion)?data.records:data);let cur=[];importCorrupt=false;try{cur=load();}catch{importCorrupt=true;}importBase=localStorage.getItem(KEY);$("mergeImport").disabled=importCorrupt;importPlan=TTC.importPlan(cur,incoming);sb.prepareImport(data,importPlan);pendingImport=incoming;
   const dates=incoming.map(r=>r.date).sort();$("previewRange").textContent=dates.length?dates[0]+" – "+dates.at(-1):"Empty backup";
   $("previewShifts").textContent=incoming.length;$("previewNew").textContent=importPlan.filter(x=>x.kind==="new").length;$("previewDuplicates").textContent=importPlan.filter(x=>x.kind==="identical").length;$("previewChanged").textContent=importPlan.filter(x=>x.kind==="changed").length;
   $("previewNotes").textContent=incoming.filter(r=>r.notes).length;$("previewPhotos").textContent=incoming.reduce((s,r)=>s+(r.photos||[]).length,0);
@@ -433,7 +440,7 @@ $("replaceImport").onclick=()=>{
 $("openDeleteAll").onclick=()=>{$("deleteAllConfirm").classList.remove("hidden");$("deleteConfirmText").value="";$("confirmDeleteAll").disabled=true;$("deleteConfirmText").focus()};
 $("cancelDeleteAll").onclick=()=>{$("deleteAllConfirm").classList.add("hidden");$("deleteConfirmText").value="";$("confirmDeleteAll").disabled=true};
 $("deleteConfirmText").oninput=()=>{$("confirmDeleteAll").disabled=$("deleteConfirmText").value.trim()!=="DELETE"};
-$("confirmDeleteAll").onclick=()=>{if($("deleteConfirmText").value.trim()!=="DELETE")return;if(!confirm("Final confirmation: delete all active TTC shift records and Spareboard day details? A local recovery copy will remain."))return;try{snapshot();backupDownload("TTC_Shift_Log_Last_Chance");sb.deleteAll();save([]);$("deleteAllConfirm").classList.add("hidden");$("deleteConfirmText").value="";renderHistory();renderSummary();alert("Shift records and Spareboard details deleted. A local recovery copy remains. Check Files for the requested backup download.");}catch(e){sb.cancel();notifyError(e);}};
+$("confirmDeleteAll").onclick=()=>{if($("deleteConfirmText").value.trim()!=="DELETE")return;if(!confirm("Final confirmation: delete all active TTC shift records and Spareboard / holiday day details? A local recovery copy will remain."))return;try{snapshot();backupDownload("TTC_Shift_Log_Last_Chance");sb.deleteAll();save([]);$("deleteAllConfirm").classList.add("hidden");$("deleteConfirmText").value="";renderHistory();renderSummary();alert("Shift records and assignment details deleted. A local recovery copy remains. Check Files for the requested backup download.");}catch(e){sb.cancel();notifyError(e);}};
 function getDraftState(){return JSON.stringify({fields:JSON.parse(getEditState()),photos:pendingPhotos,editingId});}
 function persistDraft(){
  if(suppressDraft)return;
@@ -443,7 +450,7 @@ function persistDraft(){
 }
 $("shiftForm").addEventListener("input",persistDraft);$("shiftForm").addEventListener("change",persistDraft);
 window.addEventListener("beforeunload",e=>{if(photoBusy){e.preventDefault();e.returnValue="";}});
-$("downloadRecovery").onclick=()=>{try{const raw=localStorage.getItem(RECOVERY);if(raw===null)return alert("No local recovery copy yet.");download(JSON.stringify({format:"TTC Shift Log",schemaVersion:2,records:JSON.parse(raw),spareboard:sb.recoveryData()}),"TTC_Local_Recovery_"+today()+".json","application/json");}catch(e){alert("Recovery export stopped. "+e.message);}};
+$("downloadRecovery").onclick=()=>{try{const raw=localStorage.getItem(RECOVERY);if(raw===null)return alert("No local recovery copy yet.");download(JSON.stringify({format:"TTC Shift Log",schemaVersion:3,records:JSON.parse(raw),spareboard:sb.recoveryData()}),"TTC_Local_Recovery_"+today()+".json","application/json");}catch(e){alert("Recovery export stopped. "+e.message);}};
 $("downloadRaw").onclick=()=>{download(localStorage.getItem(KEY)||"[]","TTC_Stored_Data_"+today()+".json","application/json");const raw=localStorage.getItem(Spareboard.KEY);if(raw!==null)download(raw,"TTC_Spareboard_Stored_Data_"+today()+".json","application/json");};
 $("restoreRecovery").onclick=()=>{try{const raw=localStorage.getItem(RECOVERY);if(!raw)return alert("No local recovery copy yet.");const records=TTC.validate(JSON.parse(raw));if(!confirm("Restore the local recovery copy containing "+records.length+" shifts and its Spareboard details? Export your current data first."))return;backupDownload("TTC_Before_Recovery");sb.restoreRecovery(records);location.reload();}catch(e){sb.cancel();alert("Recovery stopped. "+e.message);}};
 $("restoreDeleted").onclick=()=>{try{const item=JSON.parse(localStorage.getItem(TRASH)||"null");if(!item)return alert("No deleted shift available.");const cur=load();if(cur.some(r=>r.id===item.record.id))return alert("That shift is already present.");if(!confirm("Restore "+item.record.date+" · Route "+item.record.routes+"?"))return;cur.push(item.record);save(reclassify(cur));localStorage.removeItem(TRASH);renderHistory();renderSummary();}catch(e){alert("Restore stopped. "+e.message);}};
@@ -463,5 +470,5 @@ try{
  }
 }catch(error){notifyError(error);switchTab("backup");}
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=19.0.1").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=19.1").catch(()=>{}));
 });
