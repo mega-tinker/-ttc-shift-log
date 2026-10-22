@@ -10,6 +10,7 @@
   const kinds=['onReportWaiting','travel','vehicleWaiting','otherDuty'];
   const labels={onReportWaiting:'On-report waiting',travel:'Travel',vehicleWaiting:'Waiting with vehicle',otherDuty:'Other duty'};
   const holidays=m=>m.holidays||[];
+  const DELETED=KEY+'DeletedDaysV1';
   const holidayLinks=m=>m.holidayLinks||[];
   function validate(m){
     if(!m||m.version!==1||!Array.isArray(m.days)||!Array.isArray(m.links))throw Error('Invalid Spareboard metadata.');
@@ -59,7 +60,7 @@
   }
   function create(api){
     const $=id=>document.getElementById(id), esc=api.esc, hm=api.hm;
-    let pending=null, editBase=null, importData=null, importOriginal=null, importIds=[], importCurrentIds=new Set(), importBase=null,shownDate='';
+    let pending=null, editBase=null, importData=null, importOriginal=null, importIds=[], importCurrentIds=new Set(), importBase=null,shownDate='',dayEditing=false;
     const read=()=>{const raw=localStorage.getItem(KEY);return raw?validate(JSON.parse(raw)):empty();};
     function day(date){return read().days.find(d=>d.date===date)||blankDay(date);}
     function linked(r){return read().links.some(l=>l.id===r.id&&l.date===r.date);}
@@ -78,6 +79,8 @@
       <details><summary>Guarantee / pay notes (optional)</summary><label>Eligibility recorded by operator<select id="sbGuarantee"><option value="notAssessed">Not assessed</option><option value="eligible">Operator-confirmed eligible</option><option value="ineligible">Operator-confirmed ineligible</option></select></label><label>Confirmed guarantee (hours:minutes)<input id="sbGuaranteeTime" type="text" placeholder="8:00" inputmode="text" autocapitalize="off" spellcheck="false"></label></details>
       <label>Spareboard day notes<textarea id="sbNotes" rows="3"></textarea></label><p id="sbPreview" role="status"></p><button id="sbSaveDay" type="button" class="secondary">Save day details only</button><p id="sbStatus" role="status"></p>`;
     document.querySelector('.optional-section').before(box);
+    box.insertAdjacentHTML('beforeend','<div id="sbDayEditActions" class="hidden"><div class="edit-delete-zone"><div><strong>Delete Spareboard day</strong><p id="sbDeleteDescription"></p><label id="sbDeleteChoiceLabel">What should be removed?<select id="sbDeleteChoice"><option value="details">Spareboard details only — keep work pieces</option><option value="pieces">Spareboard day and its linked work pieces</option></select></label></div><button id="sbDeleteDay" type="button" class="danger-outline">Delete Spareboard Day</button></div><button id="sbCancelDay" type="button" class="secondary">Cancel Edit</button></div>');
+    $('restoreDeleted').insertAdjacentHTML('afterend','<details id="sbDeletedDays" class="hidden"><summary>Recover deleted Spareboard days</summary><p>Recovery stays on this device. Restore any wanted items before exporting your JSON backup.</p><div id="sbDeletedList"></div></details>');
     document.querySelector('.filter-grid').insertAdjacentHTML('beforeend','<label>Work assignment<select id="filterAssignment"><option value="all">All</option><option value="regular">Regular</option><option value="spareboard">Spareboard</option></select></label>');
     $('historyList').insertAdjacentHTML('beforebegin','<div id="sbHistoryDays"></div>');
     $('filterAssignment').insertAdjacentHTML('beforeend','<option value="holiday">Holiday</option>');
@@ -110,10 +113,19 @@
     }
     function showHoliday(date){const h=holidays(read()).find(h=>h.date===date)||null;holidayBase=JSON.stringify(h);$('holidayNotes').value=h?.notes||'';$('holidayStatus').textContent=api.load().some(r=>r.date===date&&!holidayLinked(r))?'Existing pieces on this date keep their saved pay categories. Edit each piece and select Holiday if it should be holiday work.':'';}
     function preview(){try{const d=capture();validate({version:1,days:[d],links:[]});const t=totals(d);$('sbPreview').textContent='Recorded waiting: '+hm(t.waiting)+' · other duty: '+hm(t.other)+' · pay not assessed';}catch(e){$('sbPreview').textContent=e.message;}}
-    function state(){return {mode:$('assignmentType').value,day:capture(),base:editBase,guaranteeText:$('sbGuaranteeTime').value,holidayNotes:$('holidayNotes').value,holidayBase};}
-    function restore(s){$('assignmentType').value=s?.mode||'regular';show(s?.day||day($('date').value),s?.base);if(s?.guaranteeText!==undefined)$('sbGuaranteeTime').value=s.guaranteeText;showHoliday($('date').value);if(s?.holidayNotes!==undefined)$('holidayNotes').value=s.holidayNotes;if(s?.holidayBase!==undefined)holidayBase=s.holidayBase;toggle();preview();}
-    function reset(){pending=null;holidayMode=false;$('overtimeWork').disabled=false;$('assignmentType').value='regular';show(day($('date').value));showHoliday($('date').value);toggle();}
-    function edit(r){holidayMode=false;$('assignmentType').value=holidayLinked(r)?'holiday':linked(r)?'spareboard':'regular';show(day(r.date));showHoliday(r.date);toggle();}
+    function setDayEditing(active){
+      dayEditing=active;box.open=true;$('shiftForm').classList.toggle('sb-day-editing',active);
+      $('shiftForm').noValidate=active;
+      $('sbDayEditActions').classList.toggle('hidden',!active);$('sbSaveDay').textContent=active?'Update Spareboard Day':'Save day details only';
+      $(active?'sbCancelDay':'sbStatus').before($('sbSaveDay'));
+      const count=api.load().filter(r=>r.date===shownDate&&linked(r)).length;
+      $('sbDeleteDescription').textContent=count?count+' linked work piece(s). Choose what to remove. Other entries on this date are kept.':'No linked work pieces. Only this Spareboard day will be removed.';
+      $('sbDeleteChoiceLabel').classList.toggle('hidden',!count);$('sbDeleteChoice').value='details';
+    }
+    function state(){return {mode:$('assignmentType').value,dayEditing,day:capture(),base:editBase,guaranteeText:$('sbGuaranteeTime').value,holidayNotes:$('holidayNotes').value,holidayBase};}
+    function restore(s){$('assignmentType').value=s?.mode||'regular';show(s?.day||day($('date').value),s?.base);if(s?.guaranteeText!==undefined)$('sbGuaranteeTime').value=s.guaranteeText;showHoliday($('date').value);if(s?.holidayNotes!==undefined)$('holidayNotes').value=s.holidayNotes;if(s?.holidayBase!==undefined)holidayBase=s.holidayBase;toggle();preview();setDayEditing(!!s?.dayEditing);}
+    function reset(){setDayEditing(false);pending=null;holidayMode=false;$('overtimeWork').disabled=false;$('assignmentType').value='regular';show(day($('date').value));showHoliday($('date').value);toggle();}
+    function edit(r){setDayEditing(false);holidayMode=false;$('assignmentType').value=holidayLinked(r)?'holiday':linked(r)?'spareboard':'regular';show(day(r.date));showHoliday(r.date);toggle();}
     function stage(r){
       const m=read();m.links=m.links.filter(l=>l.id!==r.id);
       if(m.holidayLinks)m.holidayLinks=m.holidayLinks.filter(l=>l.id!==r.id);
@@ -124,6 +136,7 @@
         if(r.id)m.holidayLinks=holidayLinks(m).concat({id:r.id,date:r.date});
       }
       if($('assignmentType').value==='spareboard'){
+        if(dayEditing&&!m.days.some(d=>d.date===r.date))throw Error('This Spareboard day was removed elsewhere. Reopen History before saving.');
         if(editBase!==JSON.stringify(day(r.date)))throw Error('Spareboard day changed elsewhere. Reopen the day before saving.');
         const d=capture();validate({version:1,days:[d],links:[]});
         if(d.date!==r.date)throw Error('Select the work date again to load its Spareboard details.');
@@ -150,9 +163,55 @@
     function exportData(records){const m=read(),ids=new Map(records.map(r=>[r.id,r.date]));return {...m,links:m.links.filter(l=>ids.get(l.id)===l.date),...(m.holidayLinks?{holidayLinks:m.holidayLinks.filter(l=>ids.get(l.id)===l.date)}:{})};}
     function matches(r,q){if(holidayLinked(r)&&('holiday '+JSON.stringify(holidays(read()).find(h=>h.date===r.date)||{})).toLowerCase().includes(q))return true;const l=read().links.find(x=>x.id===r.id&&x.date===r.date),d=l&&day(l.date);return !!d&&('spareboard '+JSON.stringify(d)).toLowerCase().includes(q);}
     function filter(r){const v=$('filterAssignment').value;return v==='all'||v==='holiday'&&holidayLinked(r)||v==='spareboard'&&linked(r)||v==='regular'&&!linked(r)&&!holidayLinked(r);}
-    function openDay(date){if(!api.discard())return;api.reset();$('date').value=date;$('assignmentType').value='spareboard';show(day(date));toggle();api.recalc();api.switchTab('new');api.persistDraft();window.scrollTo(0,0);}
+    function openDay(date){if(!api.discard())return;api.reset();$('date').value=date;$('assignmentType').value='spareboard';show(day(date));toggle();setDayEditing(true);api.recalc();api.switchTab('new');api.persistDraft();window.scrollTo(0,0);}
+    function deletedDays(){const items=JSON.parse(localStorage.getItem(DELETED)||'[]');if(!Array.isArray(items))throw Error('Deleted Spareboard days could not be read.');return items;}
+    function classifyDate(records,date){const changed=new Map(TTC.classify(records.filter(r=>r.date===date)).map(r=>[r.id,r]));return records.map(r=>changed.get(r.id)||r);}
+    function deleteDay(){
+      if(!dayEditing)return;
+      try{
+        const m=read(),d=m.days.find(x=>x.date===shownDate);
+        if(!d||JSON.stringify(d)!==editBase)throw Error('This day changed elsewhere. Reopen it before deleting.');
+        const records=api.load(),links=m.links.filter(l=>l.date===d.date),ids=new Set(links.map(l=>l.id));
+        const pieces=records.filter(r=>r.date===d.date&&ids.has(r.id)),removePieces=$('sbDeleteChoice').value==='pieces';
+        const question='Delete Spareboard details for '+d.date+'?\n\n'+(removePieces?'Also delete '+pieces.length+' linked work piece(s):\n'+pieces.map(r=>'Route '+r.routes+' · '+r.scheduledStart+'–'+r.scheduledFinish).join('\n'):'Keep all '+pieces.length+' work piece(s) with their current times and pay settings.')+'\n\nOther entries are kept. Recovery is available in Backup.';
+        if(!confirm(question))return;
+        // Write recovery first; a full/quota-limited device must not lose the day.
+        const oldTrash=localStorage.getItem(DELETED),items=deletedDays();
+        const item={id:crypto.randomUUID(),deletedAt:new Date().toISOString(),day:d,links:links.filter(l=>pieces.some(r=>r.id===l.id)),records:removePieces?pieces:[]};
+        api.snapshot();localStorage.setItem(DELETED,JSON.stringify(items.concat(item)));
+        m.days=m.days.filter(x=>x.date!==d.date);m.links=m.links.filter(l=>l.date!==d.date);
+        const next=removePieces?classifyDate(records.filter(r=>!(r.date===d.date&&ids.has(r.id))),d.date):records;
+        try{transaction(localStorage,next,m);}catch(e){if(oldTrash===null)localStorage.removeItem(DELETED);else localStorage.setItem(DELETED,oldTrash);throw e;}
+        pending=null;api.reset();api.render();api.switchTab('history');
+        alert('Spareboard day deleted. Restore it from Backup → Recover deleted Spareboard days.');
+      }catch(e){alert('Deletion stopped. '+e.message);}
+    }
+    function restoreDay(id){
+      try{
+        const items=deletedDays(),item=items.find(x=>x.id===id);if(!item)return;
+        const m=read(),records=api.load(),date=item.day.date;
+        validate({version:1,days:[item.day],links:item.links});TTC.validate(item.records);
+        if(m.days.some(d=>d.date===date))throw Error('A Spareboard day already exists on this date. It has not been overwritten.');
+        if(item.records.some(r=>records.some(x=>x.id===r.id||TTC.fingerprint(x)===TTC.fingerprint(r))))throw Error('A deleted work piece is already present or matches an existing piece. Resolve that conflict before restoring.');
+        const next=records.concat(item.records);
+        if(item.links.some(l=>!next.some(r=>r.id===l.id&&r.date===l.date)||m.links.some(x=>x.id===l.id)||holidayLinks(m).some(x=>x.id===l.id)))throw Error('A linked work piece was changed, removed or reassigned. Restore from a full backup or resolve that conflict first.');
+        if(!confirm('Restore Spareboard '+date+' and '+item.records.length+' deleted work piece(s)?'))return;
+        api.snapshot();m.days.push(item.day);m.links.push(...item.links);
+        transaction(localStorage,item.records.length?classifyDate(next,date):next,m);
+        localStorage.setItem(DELETED,JSON.stringify(items.filter(x=>x.id!==id)));api.render();
+      }catch(e){alert('Restore stopped. '+e.message);}
+    }
+    function renderDeletedDays(){
+      const host=$('sbDeletedList');host.replaceChildren();const items=deletedDays();$('sbDeletedDays').classList.toggle('hidden',!items.length);
+      for(const item of [...items].reverse()){
+        const row=document.createElement('div'),button=document.createElement('button');button.type='button';button.className='secondary';
+        button.textContent='Restore '+item.day.date+' · '+item.records.length+' deleted work piece(s)';button.onclick=()=>restoreDay(item.id);row.append(button);host.append(row);
+      }
+    }
+    $('sbDeleteDay').onclick=deleteDay;
+    $('sbCancelDay').onclick=()=>{if(JSON.stringify(capture())!==editBase&&!confirm('Discard your changes to this Spareboard day?'))return;api.reset();api.switchTab('history');};
     function renderDays(){
-      const m=read(),records=api.load(),host=$('sbHistoryDays');host.replaceChildren();
+      const m=read(),records=api.load(),host=$('sbHistoryDays');host.replaceChildren();renderDeletedDays();
       renderHolidays();
       if(['regular','holiday'].includes($('filterAssignment').value)||api.exact())return;
       const q=$('search').value.trim().toLowerCase(),from=$('filterFrom').value,to=$('filterTo').value;
@@ -161,9 +220,9 @@
       for(const d of [...m.days].sort((a,b)=>$('sortOrder').value==='oldest'?a.date.localeCompare(b.date):b.date.localeCompare(a.date))){
         const pieces=records.filter(r=>r.date===d.date&&m.links.some(l=>l.id===r.id&&l.date===d.date)),visible=filtered.some(r=>pieces.some(p=>p.id===r.id));
         if(from&&d.date<from||to&&d.date>to||pieceFilters&&!visible||q&&!visible&&!('spareboard '+JSON.stringify(d)).toLowerCase().includes(q))continue;
-        const t=totals(d),el=document.createElement('details');el.className='record-card sb-day-card';
-        el.innerHTML='<summary>Spareboard · '+esc(d.date)+' · '+pieces.length+' piece(s)</summary><p>Recorded waiting '+hm(t.waiting)+' · other duty '+hm(t.other)+' · pay not assessed</p><p>Report: '+esc(d.reportAt||'Not entered')+' · Actual report: '+esc(d.actualReportAt||'Not entered')+' · Release: '+esc(d.releaseAt||'Not entered')+'</p><p>'+esc([d.division,d.location,d.position?'Position '+d.position:'',d.method].filter(Boolean).join(' · '))+'</p><p>Guarantee: '+esc(d.guarantee)+(d.guaranteeMinutes===null?'':' · operator-entered '+hm(d.guaranteeMinutes))+'</p>'+d.periods.map(p=>'<p>'+esc(labels[p.kind])+': '+esc(p.start)+' → '+esc(p.end)+' ('+hm(elapsed(p.start,p.end))+')'+(p.included?' · included in scheduled time':'')+' '+esc(p.notes)+'</p>').join('')+'<p>'+esc(d.notes)+'</p><button type="button" class="secondary">Edit day details</button>';
-        el.querySelector('button').onclick=()=>openDay(d.date);host.appendChild(el);
+        const t=totals(d),card=document.createElement('div'),el=document.createElement('details');card.className='record-card sb-day-card';
+        el.innerHTML='<summary>Spareboard · '+esc(d.date)+' · '+(pieces.length?pieces.length+' work piece(s)':'No work pieces saved')+'</summary><p>Recorded waiting '+hm(t.waiting)+' · other duty '+hm(t.other)+' · pay not assessed</p><p>Report: '+esc(d.reportAt||'Not entered')+' · Actual report: '+esc(d.actualReportAt||'Not entered')+' · Release: '+esc(d.releaseAt||'Not entered')+'</p><p>'+esc([d.division,d.location,d.position?'Position '+d.position:'',({unknown:'Assignment method: Not selected',preDetailed:'Pre-detailed',afterReport:'Assigned after reporting',mixed:'Mixed'})[d.method]].filter(Boolean).join(' · '))+'</p><p>Guarantee: '+esc(({notAssessed:'Not assessed',eligible:'Operator-confirmed eligible',ineligible:'Operator-confirmed ineligible'})[d.guarantee])+(d.guaranteeMinutes===null?'':' · operator-entered '+hm(d.guaranteeMinutes))+'</p>'+d.periods.map(p=>'<p>'+esc(labels[p.kind])+': '+esc(p.start)+' → '+esc(p.end)+' ('+hm(elapsed(p.start,p.end))+')'+(p.included?' · included in scheduled time':'')+' '+esc(p.notes)+'</p>').join('')+'<p>'+esc(d.notes)+'</p>';
+        const editButton=document.createElement('button');editButton.type='button';editButton.className='edit-btn';editButton.textContent='Edit';editButton.setAttribute('aria-label','Edit Spareboard '+d.date);editButton.onclick=()=>openDay(d.date);card.append(el,editButton);host.appendChild(card);
       }
     }
     function renderHolidays(){
@@ -214,11 +273,12 @@
     $('saveHolidayOnly').onclick=()=>{try{if(!dateOK($('date').value))throw Error('Choose a valid date.');stage({id:null,date:$('date').value});api.snapshot();save(api.load());$('holidayStatus').textContent='Saved 8:00 holiday credit for this date. Work fields have not been saved.';api.render();api.persistDraft();}catch(e){pending=null;$('holidayStatus').textContent=e.message;}};
     box.addEventListener('input',preview);box.addEventListener('change',preview);
     $('sbAddPeriod').onclick=()=>{addPeriod({id:crypto.randomUUID(),kind:'onReportWaiting',start:$('date').value+'T06:00',end:$('date').value+'T06:30',included:false,notes:''});preview();api.persistDraft();};
-    $('sbSaveDay').onclick=()=>{try{stage({id:null,date:$('date').value});api.snapshot();save(api.load());editBase=JSON.stringify(day($('date').value));$('sbStatus').textContent='Day details saved. Work piece fields have not been saved.';api.persistDraft();api.render();}catch(e){pending=null;$('sbStatus').textContent=e.message;}};
+    $('sbSaveDay').onclick=()=>{try{stage({id:null,date:$('date').value});api.snapshot();save(api.load());editBase=JSON.stringify(day($('date').value));if(dayEditing){api.reset();api.render();api.switchTab('history');return;}$('sbStatus').textContent='Day details saved. Work piece fields have not been saved.';api.persistDraft();api.render();}catch(e){pending=null;$('sbStatus').textContent=e.message;}};
     $('filterAssignment').onchange=()=>{api.clearExact();api.renderHistory();api.updateFilters();};
     $('sbViewDays').onclick=()=>{api.clearFilters();$('filterAssignment').value='spareboard';api.updateFilters();api.switchTab('history');window.scrollTo(0,0);};
     $('holidayViewDays').onclick=()=>{api.clearFilters();$('filterAssignment').value='holiday';api.updateFilters();api.switchTab('history');window.scrollTo(0,0);};
     return {read,linked,holidayLinked,holidayCredit,holidayDates,holidaySummary,reset,edit,state,restore,stage,save,snapshot,exportData,matches,filter,renderDays,summary,prepareImport,stageImport,
+      isDayEditing:()=>dayEditing,
       cancel:()=>{pending=null;},hasPending:()=>pending!==null,recover:()=>recover(localStorage),
       restoreRecovery:records=>{pending=recoveryData();save(records);},
       recoveryData,

@@ -39,7 +39,7 @@ function load(){
 }
 function save(v){TTC.validate(v);sb.save(v);}
 function snapshot(){const raw=localStorage.getItem(KEY)||"[]";TTC.validate(JSON.parse(raw));sb.snapshot(raw);localStorage.setItem(RECOVERY,raw);}
-function backupData(records=load()){const metadata=sb.exportData(records),hasHoliday=(metadata.holidays||[]).length||(metadata.holidayLinks||[]).length,hasMetadata=hasHoliday||metadata.days.length||metadata.links.length;return {format:"TTC Shift Log",schemaVersion:hasHoliday?3:hasMetadata?2:1,appVersion:"19.1.1",exportedAt:new Date().toISOString(),records,...(hasMetadata?{spareboard:metadata}:{})};}
+function backupData(records=load()){const metadata=sb.exportData(records),hasHoliday=(metadata.holidays||[]).length||(metadata.holidayLinks||[]).length,hasMetadata=hasHoliday||metadata.days.length||metadata.links.length;return {format:"TTC Shift Log",schemaVersion:hasHoliday?3:hasMetadata?2:1,appVersion:"19.2",exportedAt:new Date().toISOString(),records,...(hasMetadata?{spareboard:metadata}:{})};}
 function backupDownload(name="TTC_Shift_Log_Backup_v19"){download(JSON.stringify(backupData(),null,2),name+"_"+today()+".json","application/json");}
 
 function today(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
@@ -139,7 +139,7 @@ function saveCurrentShift(keepForNext=false){
     return false;
   }finally{saving=false;}
 }
-$("shiftForm").onsubmit=e=>{e.preventDefault();saveCurrentShift(false)};
+$("shiftForm").onsubmit=e=>{e.preventDefault();if(sb.isDayEditing()){$("sbSaveDay").click();return;}saveCurrentShift(false)};
 $("saveNextPiece").onclick=()=>{
   if(!$("shiftForm").reportValidity())return;
   saveCurrentShift(true);
@@ -470,5 +470,5 @@ try{
  }
 }catch(error){notifyError(error);switchTab("backup");}
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=19.1.1").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=19.2").catch(()=>{}));
 });
