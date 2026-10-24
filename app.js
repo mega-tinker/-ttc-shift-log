@@ -39,7 +39,7 @@ function load(){
 }
 function save(v){TTC.validate(v);sb.save(v);}
 function snapshot(){const raw=localStorage.getItem(KEY)||"[]";TTC.validate(JSON.parse(raw));sb.snapshot(raw);localStorage.setItem(RECOVERY,raw);}
-function backupData(records=load()){const metadata=sb.exportData(records),hasHoliday=(metadata.holidays||[]).length||(metadata.holidayLinks||[]).length,hasMetadata=hasHoliday||metadata.days.length||metadata.links.length;return {format:"TTC Shift Log",schemaVersion:hasHoliday?3:hasMetadata?2:1,appVersion:"19.2",exportedAt:new Date().toISOString(),records,...(hasMetadata?{spareboard:metadata}:{})};}
+function backupData(records=load()){const metadata=sb.exportData(records),hasHoliday=(metadata.holidays||[]).length||(metadata.holidayLinks||[]).length,hasMetadata=hasHoliday||metadata.days.length||metadata.links.length;return {format:"TTC Shift Log",schemaVersion:hasHoliday?3:hasMetadata?2:1,appVersion:"19.2.1",exportedAt:new Date().toISOString(),records,...(hasMetadata?{spareboard:metadata}:{})};}
 function backupDownload(name="TTC_Shift_Log_Backup_v19"){download(JSON.stringify(backupData(),null,2),name+"_"+today()+".json","application/json");}
 
 function today(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
@@ -185,12 +185,12 @@ function filteredRecords(){
 function renderHistory(){
   const records=filteredRecords(),all=reclassify(load()),list=$("historyList");$("filterCount").textContent=records.length+" of "+all.length+" shift(s)";list.innerHTML="";
   sb.renderDays();
-  if(!records.length){list.innerHTML='<div class="record-card empty-state"><strong>No matching work pieces</strong><span>'+(($('sbHistoryDays').children.length||$('holidayHistoryDays').children.length)?'Day details are shown above.':'Try changing your search or filters.')+'</span></div>';return}
+  if(!records.length&&!$('sbHistoryDays').children.length&&!$('holidayHistoryDays').children.length){list.innerHTML='<div class="record-card empty-state"><strong>No matching entries</strong><span>Try changing your search or filters.</span></div>';return}
   let lastDate=null;
   records.forEach(r=>{
     if(lastDate!==r.date){lastDate=r.date;const entries=all.filter(x=>x.date===r.date),d=TTC.day(entries),h=document.createElement("div");h.className="day-heading";
       h.innerHTML='<div><strong>'+esc(r.date)+'</strong><span>'+entries.length+' piece(s) for this date</span></div><div><b>'+hm(d.platform)+'</b><span>Paid scheduled</span></div><div><b>'+hm(d.paidOt)+'</b><span>Late OT 2×</span></div>';
-      list.appendChild(h);
+      h.dataset.date=r.date;list.appendChild(h);
     }
     const paid=mins(r.paid),aot=mins(r.actualOt),pot=mins(r.paidOt),uot=mins(r.unpaidOt),stepbackMinutes=mins(r.stepbackTime);
     const completed=!!r.actualFinish,inc=r.incident&&r.incident!=="None",photos=(r.photos||[]).length,note=String(r.notes||"").trim();
@@ -231,8 +231,9 @@ function renderHistory(){
     c.querySelector(".card-notes").textContent=note?("“"+note+"”"):"";
     c.querySelector(".edit-btn").onclick=()=>edit(r.id);
     const pb=c.querySelector(".history-photos");(r.photos||[]).forEach(p=>{const w=document.createElement("div");w.className="thumb-wrap";w.innerHTML='<img class="thumb" src="'+p.data+'">'+(p.keep?'<span class="keep-badge">Keep</span>':expired(p)?'<span class="expired-badge">6+ mo</span>':'');w.querySelector("img").onclick=()=>openPhoto(r.id,p.id);pb.appendChild(w)});
-    list.appendChild(c);
+    c.dataset.date=r.date;list.appendChild(c);
   });
+  sb.orderHistory();
 }
 
 function getEditState(){
@@ -322,7 +323,7 @@ function renderSummary(){
   $("weekRange").textContent=fmt(currentWeekStart)+" – "+fmt(end);
   const week=all.filter(r=>r.date>=startISO&&r.date<=endISO),days={};const heroPaid=total(week,"paid");
   sb.summary(startISO,endISO);
-  sb.holidaySummary();
+  sb.holidaySummary(startISO,endISO);
   $("weekHeroPaid").textContent=hm(heroPaid);
   $("weekHeroShifts").textContent=week.length+" shift"+(week.length===1?"":"s");
   const heroRoutes=new Set();week.forEach(r=>String(r.routes||"").split(/[\/,]+/).map(x=>x.trim()).filter(Boolean).forEach(x=>heroRoutes.add(x)));
@@ -470,5 +471,5 @@ try{
  }
 }catch(error){notifyError(error);switchTab("backup");}
 
-if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=19.2").catch(()=>{}));
+if("serviceWorker"in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js?v=19.2.1").catch(()=>{}));
 });

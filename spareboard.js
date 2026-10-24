@@ -70,6 +70,8 @@
     $('date').closest('.field-date').insertAdjacentHTML('afterend','<label class="sb-assignment">Work assignment<select id="assignmentType"><option value="regular">Regular</option><option value="spareboard">Spareboard</option></select></label>');
     $('assignmentType').insertAdjacentHTML('beforeend','<option value="holiday">Holiday</option>');
     $('assignmentType').closest('label').insertAdjacentHTML('afterend','<div id="holidayDetails" class="form-section hidden"><h2>Holiday pay + optional work</h2><p>8:00 holiday credit at 1×, once per date. Work saved as Holiday goes to Overtime Work 1.5×. Late OT stays separate.</p><label>Holiday name / notes (optional)<input id="holidayNotes" type="text"></label><button id="saveHolidayOnly" type="button" class="secondary">Save holiday pay only</button><p>No work? Use this button; route and times are not required. Working? Fill the usual piece fields below, then Save Shift or Save &amp; Next Piece. This button saves only the credit and holiday notes.</p><p id="holidayStatus" role="status"></p></div>');
+    $('holidayDetails').insertAdjacentHTML('beforeend','<button id="removeHolidayCredit" type="button" class="danger-outline hidden">Remove holiday credit</button>');
+    $('removeHolidayCredit').onclick=()=>{const date=$('date').value;if(!confirm('Remove only the 8:00 holiday credit for '+date+'? Saved work pieces and their 1.5× setting will remain.'))return;try{const m=read();if(holidayBase!==JSON.stringify(holidays(m).find(h=>h.date===date)||null))throw Error('Holiday credit changed elsewhere. Reopen it first.');api.snapshot();m.holidays=holidays(m).filter(h=>h.date!==date);pending=m;save(api.load());api.reset();api.render();api.switchTab('history');}catch(e){pending=null;alert('Could not remove holiday credit: '+e.message);}};
     const box=document.createElement('details');box.id='sbDetails';box.className='form-section sb-details hidden';box.open=true;
     box.innerHTML=`<summary>Spareboard day details</summary><p id="sbDayLabel"></p><p>Shared once across this day's Spareboard pieces. Waiting is recorded separately; pay and guarantees are not calculated.</p>
       <div class="quick-grid"><label>Assignment method<select id="sbMethod"><option value="unknown">Unknown</option><option value="preDetailed">Pre-detailed</option><option value="afterReport">Assigned after reporting</option><option value="mixed">Mixed</option></select></label>
@@ -86,7 +88,7 @@
     $('filterAssignment').insertAdjacentHTML('beforeend','<option value="holiday">Holiday</option>');
     $('sbHistoryDays').insertAdjacentHTML('beforebegin','<div id="holidayHistoryDays"></div>');
     $('weekPlatformLt8').closest('.pay-row').insertAdjacentHTML('afterend','<p id="holidayWeekInfo" class="daily-ot-preview hidden"></p>');
-    document.querySelector('.work-summary').insertAdjacentHTML('afterend','<div class="summary-section hidden" id="holidaySummary"><h2>Holiday Work Summary</h2><p id="holidayAllStats"></p><button type="button" class="secondary" id="holidayViewDays">View holidays</button></div>');
+    document.querySelector('.work-summary').insertAdjacentHTML('afterend','<div class="summary-section hidden" id="holidaySummary"><h2>Holidays</h2><p id="holidayAllStats"></p><button type="button" class="secondary" id="holidayViewDays">View holiday entries</button></div>');
     document.querySelector('.work-summary').insertAdjacentHTML('afterend','<div class="summary-section hidden" id="sbSummary"><h2>Spareboard Work Summary</h2><p id="sbWeekStats"></p><button type="button" class="secondary" id="sbViewDays">View all Spareboard days</button><p>Recorded waiting and other duty are separate from platform and late OT. Pay assessment is not automated.</p></div>');
     $('importConflicts').insertAdjacentHTML('afterend','<div id="sbImportPreview" class="hidden"><h3>Spareboard / Holiday backup details</h3><p id="sbImportText"></p><details><summary>Review current / backup details</summary><pre id="sbImportCompare"></pre></details><label>When merging day / assignment details<select id="sbImportChoice"><option value="keep">Keep current details where they conflict</option><option value="incoming">Use backup details where they conflict</option></select></label><p>Legacy backups do not remove existing day information. Replace uses all details from a new-format backup.</p></div>');
     const fields={method:'sbMethod',position:'sbPosition',division:'sbDivision',location:'sbLocation',reportAt:'sbReportAt',actualReportAt:'sbActualReportAt',releaseAt:'sbReleaseAt',guarantee:'sbGuarantee',notes:'sbNotes'};
@@ -111,7 +113,7 @@
       if(mode==='holiday'){if(!holidayMode)priorOvertime=$('overtimeWork').value;$('overtimeWork').value='Yes';$('overtimeWork').disabled=true;}
       else{if(holidayMode)$('overtimeWork').value=priorOvertime;$('overtimeWork').disabled=false;}holidayMode=mode==='holiday';
     }
-    function showHoliday(date){const h=holidays(read()).find(h=>h.date===date)||null;holidayBase=JSON.stringify(h);$('holidayNotes').value=h?.notes||'';$('holidayStatus').textContent=api.load().some(r=>r.date===date&&!holidayLinked(r))?'Existing pieces on this date keep their saved pay categories. Edit each piece and select Holiday if it should be holiday work.':'';}
+    function showHoliday(date){const h=holidays(read()).find(h=>h.date===date)||null;holidayBase=JSON.stringify(h);$('removeHolidayCredit').classList.toggle('hidden',!h);$('holidayNotes').value=h?.notes||'';$('holidayStatus').textContent=api.load().some(r=>r.date===date&&!holidayLinked(r))?'Existing pieces on this date keep their saved pay categories. Edit each piece and select Holiday if it should be holiday work.':'';}
     function preview(){try{const d=capture();validate({version:1,days:[d],links:[]});const t=totals(d);$('sbPreview').textContent='Recorded waiting: '+hm(t.waiting)+' · other duty: '+hm(t.other)+' · pay not assessed';}catch(e){$('sbPreview').textContent=e.message;}}
     function setDayEditing(active){
       dayEditing=active;box.open=true;$('shiftForm').classList.toggle('sb-day-editing',active);
@@ -220,7 +222,7 @@
       for(const d of [...m.days].sort((a,b)=>$('sortOrder').value==='oldest'?a.date.localeCompare(b.date):b.date.localeCompare(a.date))){
         const pieces=records.filter(r=>r.date===d.date&&m.links.some(l=>l.id===r.id&&l.date===d.date)),visible=filtered.some(r=>pieces.some(p=>p.id===r.id));
         if(from&&d.date<from||to&&d.date>to||pieceFilters&&!visible||q&&!visible&&!('spareboard '+JSON.stringify(d)).toLowerCase().includes(q))continue;
-        const t=totals(d),card=document.createElement('div'),el=document.createElement('details');card.className='record-card sb-day-card';
+        const t=totals(d),card=document.createElement('div'),el=document.createElement('details');card.className='record-card sb-day-card';card.dataset.date=d.date;
         el.innerHTML='<summary>Spareboard · '+esc(d.date)+' · '+(pieces.length?pieces.length+' work piece(s)':'No work pieces saved')+'</summary><p>Recorded waiting '+hm(t.waiting)+' · other duty '+hm(t.other)+' · pay not assessed</p><p>Report: '+esc(d.reportAt||'Not entered')+' · Actual report: '+esc(d.actualReportAt||'Not entered')+' · Release: '+esc(d.releaseAt||'Not entered')+'</p><p>'+esc([d.division,d.location,d.position?'Position '+d.position:'',({unknown:'Assignment method: Not selected',preDetailed:'Pre-detailed',afterReport:'Assigned after reporting',mixed:'Mixed'})[d.method]].filter(Boolean).join(' · '))+'</p><p>Guarantee: '+esc(({notAssessed:'Not assessed',eligible:'Operator-confirmed eligible',ineligible:'Operator-confirmed ineligible'})[d.guarantee])+(d.guaranteeMinutes===null?'':' · operator-entered '+hm(d.guaranteeMinutes))+'</p>'+d.periods.map(p=>'<p>'+esc(labels[p.kind])+': '+esc(p.start)+' → '+esc(p.end)+' ('+hm(elapsed(p.start,p.end))+')'+(p.included?' · included in scheduled time':'')+' '+esc(p.notes)+'</p>').join('')+'<p>'+esc(d.notes)+'</p>';
         const editButton=document.createElement('button');editButton.type='button';editButton.className='edit-btn';editButton.textContent='Edit';editButton.setAttribute('aria-label','Edit Spareboard '+d.date);editButton.onclick=()=>openDay(d.date);card.append(el,editButton);host.appendChild(card);
       }
@@ -234,14 +236,31 @@
         if(from&&h.date<from||to&&h.date>to)continue;
         const pieces=visible.filter(r=>r.date===h.date&&holidayLinked(r));
         if(pieceFilters&&!pieces.length||q&&!('holiday '+h.date+' '+h.notes).toLowerCase().includes(q)&&!pieces.length)continue;
-        const card=document.createElement('div');card.className='record-card';card.innerHTML='<strong>Holiday · '+esc(h.date)+'</strong><p>8:00 holiday credit · regular 1× · once for this date</p><p>'+esc(h.notes)+'</p><button type="button" class="secondary">Edit holiday</button> <button type="button" class="secondary">Remove holiday credit</button>';
-        card.querySelectorAll('button')[0].onclick=()=>{if(!api.discard())return;api.reset();$('date').value=h.date;$('assignmentType').value='holiday';show(day(h.date));showHoliday(h.date);toggle();api.recalc();api.switchTab('new');api.persistDraft();window.scrollTo(0,0);};
-        card.querySelectorAll('button')[1].onclick=()=>{if(!confirm('Remove only the 8:00 holiday credit for '+h.date+'? Saved work pieces and their 1.5× setting will remain.'))return;try{api.snapshot();const m=read();m.holidays=holidays(m).filter(x=>x.date!==h.date);pending=m;save(api.load());api.render();}catch(e){pending=null;alert('Could not remove holiday credit: '+e.message);}};
+        const card=document.createElement('div');card.className='record-card holiday-row';card.dataset.date=h.date;
+        card.innerHTML='<strong>Holiday</strong><button type="button" class="edit-btn">Edit</button>';
+        card.querySelector('button').setAttribute('aria-label','Edit Holiday '+h.date);
+        card.querySelector('button').onclick=()=>{if(!api.discard())return;api.reset();$('date').value=h.date;$('assignmentType').value='holiday';show(day(h.date));showHoliday(h.date);toggle();api.recalc();api.switchTab('new');api.persistDraft();window.scrollTo(0,0);};
         host.appendChild(card);
       }
     }
     function summary(start,end){const m=read(),days=m.days.filter(d=>d.date>=start&&d.date<=end),records=api.load(),pieces=records.filter(r=>r.date>=start&&r.date<=end&&linked(r));$('sbSummary').classList.toggle('hidden',!m.days.length);$('sbWeekStats').textContent='This week: '+days.length+' Spareboard day(s) · '+pieces.length+' piece(s) · '+hm(days.reduce((n,d)=>n+totals(d).waiting,0))+' recorded waiting. All time: '+m.days.length+' day(s).';}
-    function holidaySummary(){const m=read(),hs=holidays(m),work=api.load().filter(holidayLinked);$('holidaySummary').classList.toggle('hidden',!hs.length&&!work.length);$('holidayAllStats').textContent='All time: '+hs.length+' holiday credit(s) · '+hm(hs.length*480)+' at 1× · '+work.length+' holiday work piece(s), '+hm(work.reduce((n,r)=>n+TTC.duration(r.scheduledStart,r.scheduledFinish),0))+' at 1.5×. Holiday credits are separate from scheduled platform hours.';}
+    function orderHistory(){
+      const list=$('historyList'),groups=new Map();
+      for(const node of [...list.children,...$('holidayHistoryDays').children,...$('sbHistoryDays').children]){
+        const date=node.dataset.date;if(!date)continue;if(!groups.has(date))groups.set(date,[]);groups.get(date).push(node);
+      }
+      list.replaceChildren();
+      for(const date of [...groups.keys()].sort((a,b)=>$('sortOrder').value==='oldest'?a.localeCompare(b):b.localeCompare(a))){
+        const nodes=groups.get(date);let heading=nodes.find(n=>n.classList.contains('day-heading'));
+        if(!heading){heading=document.createElement('div');heading.className='day-heading';heading.dataset.date=date;heading.innerHTML='<div><strong>'+esc(date)+'</strong><span>No work pieces shown</span></div>';}
+        list.append(heading,...nodes.filter(n=>n.classList.contains('holiday-row')),...nodes.filter(n=>n.classList.contains('sb-day-card')),...nodes.filter(n=>n!==heading&&!n.classList.contains('holiday-row')&&!n.classList.contains('sb-day-card')));
+      }
+    }
+    function holidaySummary(start,end){
+      const m=read(),hs=holidays(m),week=hs.filter(h=>h.date>=start&&h.date<=end),work=api.load().filter(holidayLinked);
+      $('holidaySummary').classList.toggle('hidden',!hs.length&&!work.length);
+      $('holidayAllStats').textContent='Selected week: '+week.length+' holiday(s) · '+hm(week.length*480)+' credit. All time: '+hs.length+' holiday(s) · '+hm(hs.length*480)+' credit. Holiday credit is already included in Platform Regular ≤ 8. Holiday work: '+work.length+' piece(s) · '+hm(work.reduce((n,r)=>n+TTC.duration(r.scheduledStart,r.scheduledFinish),0))+' at 1.5× (all time).';
+    }
     function prepareImport(data,plan){
       importBase=localStorage.getItem(KEY);importData=null;importOriginal=null;importIds=[];importCurrentIds=new Set(plan.filter(p=>p.current).map(p=>p.current.id));$('sbImportPreview').classList.add('hidden');
       if(!data.spareboard)return;
@@ -277,7 +296,7 @@
     $('filterAssignment').onchange=()=>{api.clearExact();api.renderHistory();api.updateFilters();};
     $('sbViewDays').onclick=()=>{api.clearFilters();$('filterAssignment').value='spareboard';api.updateFilters();api.switchTab('history');window.scrollTo(0,0);};
     $('holidayViewDays').onclick=()=>{api.clearFilters();$('filterAssignment').value='holiday';api.updateFilters();api.switchTab('history');window.scrollTo(0,0);};
-    return {read,linked,holidayLinked,holidayCredit,holidayDates,holidaySummary,reset,edit,state,restore,stage,save,snapshot,exportData,matches,filter,renderDays,summary,prepareImport,stageImport,
+    return {read,linked,holidayLinked,holidayCredit,holidayDates,holidaySummary,reset,edit,state,restore,stage,save,snapshot,exportData,matches,filter,renderDays,orderHistory,summary,prepareImport,stageImport,
       isDayEditing:()=>dayEditing,
       cancel:()=>{pending=null;},hasPending:()=>pending!==null,recover:()=>recover(localStorage),
       restoreRecovery:records=>{pending=recoveryData();save(records);},

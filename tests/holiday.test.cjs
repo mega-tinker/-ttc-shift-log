@@ -20,14 +20,14 @@ const source=n=>fs.readFileSync(require('node:path').join(__dirname,'..',n),'utf
  assert.equal(rows().length,legacy.length+2,$('saveMessage').textContent);assert.equal(meta().holidays.length,1);assert.equal(meta().holidayLinks.length,2);
  assert.equal($('weekPlatformLt8').textContent,'8:00');assert.equal($('weekPlatformGt8').textContent,'0:00');assert.equal($('weekOvertimeWork').textContent,'9:00');assert.equal($('weekPaidOt').textContent,'0:11');assert.equal($('weekHeroPaid').textContent,'9:00');
  assert.deepEqual(rows().slice(0,legacy.length),legacy);assert.equal($('assignmentType').value,'regular');assert.equal($('overtimeWork').value,'No');assert.equal($('overtimeWork').disabled,false);
- change('filterAssignment','holiday');assert.equal(w.document.querySelectorAll('.rich-shift-card').length,2);assert.equal($('holidayHistoryDays').children.length,1);
+ change('filterAssignment','holiday');assert.equal(w.document.querySelectorAll('.rich-shift-card').length,2);assert.equal(w.document.querySelectorAll('.holiday-row').length,1);
  change('filterAssignment','regular');assert.equal(w.document.querySelectorAll('.rich-shift-card').length,legacy.length);$('clearFilters').click();
  const full={format:'TTC Shift Log',schemaVersion:3,records:rows(),spareboard:meta()};
  async function imp(data,replace=false){Object.defineProperty($('importJson'),'files',{configurable:true,value:[{text:async()=>JSON.stringify(data)}]});await $('importJson').onchange({target:$('importJson')});assert.ok(!$('importPreview').classList.contains('hidden'),alerts.at(-1));$(replace?'replaceImport':'mergeImport').click();}
  await imp(full);await imp(full);assert.equal(rows().length,legacy.length+2);assert.equal(meta().holidays.length,1);assert.equal(meta().holidayLinks.length,2);
  await imp({format:'TTC Shift Log',schemaVersion:1,records:legacy});assert.equal(meta().holidays.length,1);assert.equal(meta().holidayLinks.length,2);
  // Removing credit preserves every actual shift and its premium category.
- const before=w.localStorage.getItem(S.SHIFT);$('holidayHistoryDays').querySelectorAll('button')[1].click();assert.equal(w.localStorage.getItem(S.SHIFT),before);assert.equal(meta().holidays.length,0);assert.equal($('weekOvertimeWork').textContent,'9:00');assert.equal($('weekPlatformLt8').textContent,'0:00');
+ const before=w.localStorage.getItem(S.SHIFT);w.document.querySelector('.holiday-row button').click();$('removeHolidayCredit').click();assert.equal(w.localStorage.getItem(S.SHIFT),before);assert.equal(meta().holidays.length,0);assert.equal($('weekOvertimeWork').textContent,'9:00');assert.equal($('weekPlatformLt8').textContent,'0:00');
  await imp(full,true);assert.equal(meta().holidays.length,1);assert.equal(meta().holidayLinks.length,2);assert.equal($('weekPlatformLt8').textContent,'8:00');
  // Corrupt/duplicate credits fail validation; old validators still accept all shifts.
  assert.throws(()=>S.validate({...meta(),holidays:[...meta().holidays,...meta().holidays]}));T.validate(rows());
