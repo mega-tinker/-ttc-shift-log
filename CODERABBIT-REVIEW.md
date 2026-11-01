@@ -6,8 +6,8 @@ This document defines the safety and correctness requirements for reviewing the 
 
 ## Critical review priorities
 1. Preserve all historical records and backward compatibility. Never silently delete, overwrite, or invalidate existing entries.
-2. Check all TTC paid-hours, platform-time, overtime, and premium-pay calculations. Flag incorrect thresholds, rounding, and aggregation across multiple shifts on the same day.
-3. Verify that holiday credit and holiday work are calculated separately and displayed without double-counting or misleading descriptions.
+2. Verify TTC paid hours, platform time, the configured 10-minute overtime threshold, aggregation across multiple shifts on the same day, and correct classification of regular versus 2× overtime. Check rounding and Work Summary totals.
+3. Verify the 8-hour holiday credit separately from actual holiday work paid at 1.5×. Check worked and non-worked holidays, correct totals, chronological display, and prevention of double-counting or misleading descriptions.
 4. Verify Spareboard and Regular entries can be created, edited, displayed, and deleted correctly without affecting unrelated records.
 5. Ensure History displays entries and holiday credits in correct chronological order.
 6. Check weekly work summaries and pay calculations. TTC payroll is weekly, with a two-week payment delay; do not treat it as biweekly payroll.
