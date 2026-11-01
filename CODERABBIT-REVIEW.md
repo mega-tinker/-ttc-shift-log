@@ -1,6 +1,7 @@
 # TTC Shift Log — CodeRabbit Review Checklist
 
 ## Purpose
+
 This document defines the safety and correctness requirements for reviewing the TTC Shift Log progressive web application (PWA).
 
 ## Critical review priorities
