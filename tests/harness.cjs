@@ -1,0 +1,7 @@
+const {IDBFactory}=require('fake-indexeddb'),{webcrypto}=require('crypto');
+const sample={id:'legacy',date:'2026-09-14',routes:'51',crew:'5109',run:'5',bus:'8899',scheduledStart:'08:00',scheduledFinish:'16:00',actualFinish:'',actualFinishDay:0,overtimeWork:'No',paid:'8:00',actualOt:'0:00',paidOt:'0:00',unpaidOt:'0:00',stepbackMissed:'No',stepbackTime:'',camera:'Yes',incident:'None',notes:'legacy note',photos:[]};
+function install(w){Object.defineProperty(w,'indexedDB',{value:new IDBFactory()});Object.defineProperty(w,'crypto',{value:webcrypto});Object.assign(w,{TextEncoder,Blob,atob,btoa});}
+async function settle(w){for(let i=0;i<300;i++){await new Promise(r=>setTimeout(r,2));if(w.TTCStore&&!w.TTCStore.busy&&w.document.getElementById('assignmentType')){await new Promise(r=>setTimeout(r,2));if(!w.TTCStore.busy)return;}}throw Error('App did not settle: '+w.document.getElementById('dataError').textContent);}
+async function bind(w){await settle(w);const s=w.TTCStore;const facade=new Proxy({}, {get:(_,k)=>k==='length'?w.TTCStorage.KEYS.filter(k=>s.getItem(k)!==null).length:k==='key'?i=>w.TTCStorage.KEYS.filter(k=>s.getItem(k)!==null)[i]:s[k],ownKeys:()=>w.TTCStorage.KEYS.filter(k=>s.getItem(k)!==null),getOwnPropertyDescriptor:()=>({enumerable:true,configurable:true}),set:(_,k,v)=>{s[k]=v;return true;}});Object.defineProperty(w,'localStorage',{value:facade});}
+async function click(el,w){await settle(w);el.click();await settle(w);}
+module.exports={sample,install,settle,bind,click};

@@ -1,3 +1,4 @@
+const h=require('./harness.cjs');
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const S=require('../spareboard.js'),T=require('../core.js');
 const d=S.blankDay('2026-10-06');d.periods=[{id:'p',kind:'onReportWaiting',start:'2026-10-06T06:00',end:'2026-10-06T06:30',included:false,notes:''}];
@@ -16,15 +17,15 @@ async function workflows(){
  const {JSDOM}=require('jsdom');
  const root=path.resolve(__dirname,'..'),html=fs.readFileSync(path.join(root,'index.html'),'utf8');
  const sample={id:'legacy',date:'2026-09-14',routes:'51',crew:'5109',run:'5',bus:'8899',scheduledStart:'08:00',scheduledFinish:'16:00',actualFinish:'',actualFinishDay:0,overtimeWork:'No',paid:'8:00',actualOt:'0:00',paidOt:'0:00',unpaidOt:'0:00',stepbackMissed:'No',stepbackTime:'',camera:'Yes',incident:'None',notes:'legacy note',photos:[]};
- const uploaded=process.argv[2]?JSON.parse(fs.readFileSync(process.argv[2],'utf8')):null;
+ const uploaded=process.argv[2]?(process.argv[2]?JSON.parse(fs.readFileSync(process.argv[2],'utf8')):[h.sample]):null;
  const legacy=uploaded?T.validate(uploaded):[sample],raw=JSON.stringify(legacy);
  async function start(seed){
    const dom=new JSDOM(html,{url:'https://example.test/ttc/',runScripts:'outside-only'}),w=dom.window;await new Promise(r=>w.document.addEventListener('DOMContentLoaded',r,{once:true}));
    const alerts=[];w.confirm=()=>true;w.alert=x=>alerts.push(x);w.scrollTo=()=>{};w.URL.createObjectURL=()=> 'blob:test';w.URL.revokeObjectURL=()=>{};w.HTMLAnchorElement.prototype.click=function(){};
    for(const [k,v]of Object.entries(seed))w.localStorage.setItem(k,v);
-   for(const file of ['core.js','spareboard.js','app.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
+   h.install(w);for(const file of ['core.js','spareboard.js','storage.js','app.js'])w.eval(fs.readFileSync(path.join(root,file),'utf8'));w.document.dispatchEvent(new w.Event('DOMContentLoaded'));await h.bind(w);
    const $=id=>w.document.getElementById(id),change=(id,value)=>{$(id).value=value;$(id).dispatchEvent(new w.Event('change',{bubbles:true}));};
-   const submit=()=>{$('shiftForm').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));assert.ok(!$('saveMessage').textContent.includes('Could not'),$('saveMessage').textContent);};
+   const submit=async()=>{$('shiftForm').dispatchEvent(new w.Event('submit',{bubbles:true,cancelable:true}));await h.settle(w);assert.ok(!$('saveMessage').textContent.includes('Could not'),$('saveMessage').textContent);};
    return {dom,w,$,change,submit,alerts};
  }
  let a=await start({[S.SHIFT]:raw});let {$,w,change,submit}=a;
@@ -32,30 +33,30 @@ async function workflows(){
  assert.equal($('sbGuaranteeTime').inputMode,'text','guarantee keyboard must allow a colon');
  assert.equal(w.localStorage.getItem(S.SHIFT),raw,'opening must not rewrite legacy data');assert.equal(w.localStorage.getItem(S.KEY),null);assert.equal($('assignmentType').value,'regular');assert.ok($('sbDetails').classList.contains('hidden'));assert.ok($('dataError').classList.contains('hidden'),$('dataError').textContent);
  // Edit old record without silently assigning Spareboard.
- w.document.querySelector('.edit-btn').click();assert.equal($('assignmentType').value,'regular');$('cancelEdit').click();assert.equal(w.localStorage.getItem(S.SHIFT),raw);
+ await h.click(w.document.querySelector('.edit-btn'),w);assert.equal($('assignmentType').value,'regular');await h.click($('cancelEdit'),w);assert.equal(w.localStorage.getItem(S.SHIFT),raw);
  // A no-change legacy merge must not normalize or rewrite any stored fields.
  Object.defineProperty($('importJson'),'files',{configurable:true,value:[{text:async()=>raw}]});
- await $('importJson').onchange({target:$('importJson')});$('mergeImport').click();
+ await $('importJson').onchange({target:$('importJson')});await h.click($('mergeImport'),w);
  assert.equal(w.localStorage.getItem(S.SHIFT),raw);assert.equal(w.localStorage.getItem(S.KEY),null);
  change('date','2026-10-06');change('assignmentType','spareboard');
- change('sbReportAt','2026-10-06T06:00');$('sbAddPeriod').click();$('sbSaveDay').click();
+ change('sbReportAt','2026-10-06T06:00');await h.click($('sbAddPeriod'),w);await h.click($('sbSaveDay'),w);
  assert.equal(w.localStorage.getItem(S.SHIFT),raw,'report-only save must preserve shift bytes');assert.equal(JSON.parse(w.localStorage.getItem(S.KEY)).days.length,1);
  // Fail closed when an interrupted recovery snapshot pairs different versions.
  const recoveryKey='ttcShiftRecordsV4RecoveryV18',recoveryRaw=w.localStorage.getItem(recoveryKey);
  w.localStorage.setItem(recoveryKey,'[]');const beforeFailure=w.localStorage.getItem(S.SHIFT);
- $('restoreRecovery').click();assert.ok(a.alerts.at(-1).includes('Recovery copies do not match'));assert.equal(w.localStorage.getItem(S.SHIFT),beforeFailure);
+ await h.click($('restoreRecovery'),w);assert.ok(a.alerts.at(-1).includes('Recovery copies do not match'));assert.equal(w.localStorage.getItem(S.SHIFT),beforeFailure);
  w.localStorage.setItem(recoveryKey,recoveryRaw);
  for(const [k,v]of Object.entries({routes:'51',crew:'5109',run:'8',bus:'8899',scheduledStart:'06:30',scheduledFinish:'10:00',actualFinish:'10:06'}))change(k,v);
- $('saveNextPiece').click();assert.equal($('assignmentType').value,'spareboard');assert.equal($('date').value,'2026-10-06');assert.ok($('saveMessage').textContent.includes('Saved'),$('saveMessage').textContent);
- for(const [k,v]of Object.entries({routes:'25',crew:'2501',run:'5',bus:'6602',scheduledStart:'11:00',scheduledFinish:'15:30',actualFinish:'15:35'}))change(k,v);submit();
+ await h.click($('saveNextPiece'),w);assert.equal($('assignmentType').value,'spareboard');assert.equal($('date').value,'2026-10-06');assert.ok($('saveMessage').textContent.includes('Saved'),$('saveMessage').textContent);
+ for(const [k,v]of Object.entries({routes:'25',crew:'2501',run:'5',bus:'6602',scheduledStart:'11:00',scheduledFinish:'15:30',actualFinish:'15:35'}))change(k,v);await submit();
  const rows=JSON.parse(w.localStorage.getItem(S.SHIFT)),meta=JSON.parse(w.localStorage.getItem(S.KEY)),pieces=rows.filter(r=>r.date==='2026-10-06');assert.equal(pieces.length,2);assert.equal(meta.links.length,2);assert.equal(T.day(pieces).above8,0);assert.equal(T.day(pieces).paidOt,11);assert.equal(S.totals(meta.days[0]).waiting,30);assert.deepEqual(rows.filter(r=>r.date!=='2026-10-06'),T.classify(legacy));
  // Search / exact bus filters and metadata text.
- change('filterAssignment','spareboard');assert.equal(w.document.querySelectorAll('.rich-shift-card').length,2);change('filterBus','6602');assert.equal(w.document.querySelectorAll('.rich-shift-card').length,1);$('clearFilters').click();assert.equal($('filterAssignment').value,'all');
+ change('filterAssignment','spareboard');assert.equal(w.document.querySelectorAll('.rich-shift-card').length,2);change('filterBus','6602');assert.equal(w.document.querySelectorAll('.rich-shift-card').length,1);await h.click($('clearFilters'),w);assert.equal($('filterAssignment').value,'all');
  // Draft recovery and override retain metadata without committing shifts.
  change('date','2026-10-07');change('assignmentType','spareboard');change('sbNotes','unfinished report note');
- const seed={};for(let i=0;i<w.localStorage.length;i++){const k=w.localStorage.key(i);seed[k]=w.localStorage.getItem(k);}a.dom.window.close();
+ await h.settle(w);const seed={};for(let i=0;i<w.localStorage.length;i++){const k=w.localStorage.key(i);seed[k]=w.localStorage.getItem(k);}await h.settle(w);a.dom.window.close();
  a=await start(seed);({$,w,change,submit}=a);assert.equal($('assignmentType').value,'spareboard');assert.equal($('sbNotes').value,'unfinished report note');assert.equal(w.localStorage.getItem(S.SHIFT),seed[S.SHIFT]);
- async function importBackup(data,replace=false){Object.defineProperty($('importJson'),'files',{configurable:true,value:[{text:async()=>JSON.stringify(data)}]});await $('importJson').onchange({target:$('importJson')});assert.ok(!$('importPreview').classList.contains('hidden'),a.alerts.at(-1));$(replace?'replaceImport':'mergeImport').click();}
+ async function importBackup(data,replace=false){Object.defineProperty($('importJson'),'files',{configurable:true,value:[{text:async()=>JSON.stringify(data)}]});await $('importJson').onchange({target:$('importJson')});assert.ok(!$('importPreview').classList.contains('hidden'),a.alerts.at(-1));await h.click($(replace?'replaceImport':'mergeImport'),w);}
  const full={format:'TTC Shift Log',schemaVersion:2,records:rows,spareboard:meta};await importBackup(full);assert.equal(JSON.parse(w.localStorage.getItem(S.SHIFT)).length,rows.length);assert.equal(JSON.parse(w.localStorage.getItem(S.KEY)).days.length,1);
  await importBackup({format:'TTC Shift Log',schemaVersion:1,records:rows});assert.equal(JSON.parse(w.localStorage.getItem(S.KEY)).links.length,2,'legacy merge must retain links');
  // Replace must keep original imported IDs, even when fingerprint matched another ID.
@@ -71,7 +72,7 @@ async function workflows(){
  rw.eval(oldFile('core.js'));rw.eval(oldFile('app.js'));rw.document.dispatchEvent(new rw.Event('DOMContentLoaded'));
  assert.equal(rw.localStorage.getItem(S.SHIFT),rollbackRaw);assert.equal(rw.document.querySelectorAll('.rich-shift-card').length,rows.length);assert.ok(rw.document.getElementById('dataError').classList.contains('hidden'));
  rollback.window.close();
- assert.ok($('dataError').classList.contains('hidden'),$('dataError').textContent);a.dom.window.close();
+ assert.ok($('dataError').classList.contains('hidden'),$('dataError').textContent);await h.settle(w);a.dom.window.close();
  console.log('PASS: legacy '+legacy.length+' records, no load writes, report-only day, multi-piece save, unchanged platform/OT, filters, draft recovery, new/legacy merge, replace ID mapping and rollback-readable shifts');
 }
 workflows().catch(e=>{console.error(e);process.exitCode=1;});

@@ -1,0 +1,24 @@
+name: IndexedDB regression tests
+on:
+  push:
+    branches: [main, release/v19.2.2-indexeddb]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  storage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - run: npm run test:upgrade

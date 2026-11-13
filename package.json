@@ -1,0 +1,17 @@
+{
+  "name": "ttc-shift-log",
+  "version": "19.2.2",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/indexeddb.test.cjs && node tests/camera.test.cjs && node tests/holiday.test.cjs && node tests/history-order.test.cjs && node tests/spareboard-edit.test.cjs && node tests/spareboard.test.cjs",
+    "test:browser": "node tests/browser.cjs",
+    "test:upgrade": "node tests/upgrade.cjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "acorn": "^8.19.0",
+    "acorn-walk": "^8.3.5",
+    "fake-indexeddb": "^6.2.8",
+    "jsdom": "^22.1.0"
+  }
+}
